@@ -682,9 +682,10 @@ export const useDesignStore = create<State>((set, get) => {
       const state = get();
       const snap = snapshot(state);
       const resolved = resolveConnections(d.pieces, state.allConnectorTypes());
+      const validated = validatePlates(resolved);
       const next = {
         ...state,
-        pieces: resolved,
+        pieces: validated,
         undoStack: [...state.undoStack, snap],
         redoStack: [],
       };
