@@ -23,7 +23,10 @@ export function Toolbar({ onOpenInventory }: Props) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `design-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
+    const now = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    const stamp = `${now.getFullYear()}_${p(now.getMonth() + 1)}_${p(now.getDate())}-${p(now.getHours())}.${p(now.getMinutes())}.${p(now.getSeconds())}`;
+    a.download = `stix-design-${stamp}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
