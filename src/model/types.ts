@@ -40,7 +40,6 @@ export type Piece = ConnectorPiece | PolePiece;
 
 export type Design = {
   pieces: Piece[];
-  customConnectorTypes: ConnectorType[];
 };
 
 export type Inventory = {

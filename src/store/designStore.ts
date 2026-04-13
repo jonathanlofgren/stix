@@ -26,12 +26,10 @@ export type OpenSocket =
 
 type Snapshot = {
   pieces: Piece[];
-  customConnectorTypes: ConnectorType[];
 };
 
 type State = {
   pieces: Piece[];
-  customConnectorTypes: ConnectorType[];
   inventory: Inventory;
   mode: PlacementMode;
   undoStack: Snapshot[];
@@ -44,7 +42,6 @@ type State = {
   rotateConnector: (id: string, delta: number) => boolean;
   deletePiece: (id: string) => void;
   resetDesign: () => void;
-  addCustomConnector: (t: ConnectorType) => void;
   setInventoryConnector: (typeId: string, n: number | null) => void;
   setInventoryPole: (length: PoleLength, color: Color, n: number | null) => void;
   undo: () => void;
@@ -69,15 +66,14 @@ function loadInventory(): Inventory {
   return { connectors: {}, poles: {} };
 }
 
-function loadAutosave(): { pieces: Piece[]; customConnectorTypes: ConnectorType[] } {
+function loadAutosave(): Piece[] {
   try {
     const raw = localStorage.getItem(AUTOSAVE_KEY);
     if (raw) {
       const d = JSON.parse(raw) as Design;
-      return { pieces: d.pieces, customConnectorTypes: d.customConnectorTypes };
+      return d.pieces;
     }
   } catch { /* ignore */ }
-  // Seed with a single connector at origin so user has something to click.
   const seed: ConnectorPiece = {
     id: uid('c'),
     kind: 'connector',
@@ -85,35 +81,26 @@ function loadAutosave(): { pieces: Piece[]; customConnectorTypes: ConnectorType[
     position: [0, 0, 0],
     rotation: IDENTITY_ROTATION,
   };
-  return { pieces: [seed], customConnectorTypes: [] };
+  return [seed];
 }
 
 function persist(state: State) {
   try {
     localStorage.setItem(
       AUTOSAVE_KEY,
-      JSON.stringify({
-        pieces: state.pieces,
-        customConnectorTypes: state.customConnectorTypes,
-      } satisfies Design),
+      JSON.stringify({ pieces: state.pieces } satisfies Design),
     );
     localStorage.setItem(INVENTORY_KEY, JSON.stringify(state.inventory));
   } catch { /* ignore */ }
 }
 
 function snapshot(state: State): Snapshot {
-  return {
-    pieces: state.pieces.map((p) => ({ ...p })),
-    customConnectorTypes: state.customConnectorTypes.map((t) => ({ ...t })),
-  };
+  return { pieces: state.pieces.map((p) => ({ ...p })) };
 }
 
 export const useDesignStore = create<State>((set, get) => {
-  const autosaved = loadAutosave();
-
   return {
-    pieces: autosaved.pieces,
-    customConnectorTypes: autosaved.customConnectorTypes,
+    pieces: loadAutosave(),
     inventory: loadInventory(),
     mode: { kind: 'idle' },
     undoStack: [],
@@ -121,7 +108,7 @@ export const useDesignStore = create<State>((set, get) => {
 
     setMode: (mode) => set({ mode }),
 
-    allConnectorTypes: () => [...DEFAULT_CONNECTORS, ...get().customConnectorTypes],
+    allConnectorTypes: () => DEFAULT_CONNECTORS,
 
     connectorEffectiveSockets: (piece) => {
       const type = get().allConnectorTypes().find((t) => t.id === piece.typeId);
@@ -348,19 +335,6 @@ export const useDesignStore = create<State>((set, get) => {
       set(next);
     },
 
-    addCustomConnector: (t) => {
-      const state = get();
-      const snap = snapshot(state);
-      const next = {
-        ...state,
-        customConnectorTypes: [...state.customConnectorTypes, t],
-        undoStack: [...state.undoStack, snap],
-        redoStack: [],
-      };
-      persist(next as State);
-      set(next);
-    },
-
     setInventoryConnector: (typeId, n) => {
       const state = get();
       const connectors = { ...state.inventory.connectors };
@@ -386,11 +360,10 @@ export const useDesignStore = create<State>((set, get) => {
       const state = get();
       const prev = state.undoStack[state.undoStack.length - 1];
       if (!prev) return;
-      const current: Snapshot = { pieces: state.pieces, customConnectorTypes: state.customConnectorTypes };
+      const current: Snapshot = { pieces: state.pieces };
       const next = {
         ...state,
         pieces: prev.pieces,
-        customConnectorTypes: prev.customConnectorTypes,
         undoStack: state.undoStack.slice(0, -1),
         redoStack: [...state.redoStack, current],
       };
@@ -402,11 +375,10 @@ export const useDesignStore = create<State>((set, get) => {
       const state = get();
       const nextSnap = state.redoStack[state.redoStack.length - 1];
       if (!nextSnap) return;
-      const current: Snapshot = { pieces: state.pieces, customConnectorTypes: state.customConnectorTypes };
+      const current: Snapshot = { pieces: state.pieces };
       const next = {
         ...state,
         pieces: nextSnap.pieces,
-        customConnectorTypes: nextSnap.customConnectorTypes,
         undoStack: [...state.undoStack, current],
         redoStack: state.redoStack.slice(0, -1),
       };
@@ -414,10 +386,7 @@ export const useDesignStore = create<State>((set, get) => {
       set(next);
     },
 
-    exportDesign: () => ({
-      pieces: get().pieces,
-      customConnectorTypes: get().customConnectorTypes,
-    }),
+    exportDesign: () => ({ pieces: get().pieces }),
 
     importDesign: (d) => {
       const state = get();
@@ -425,7 +394,6 @@ export const useDesignStore = create<State>((set, get) => {
       const next = {
         ...state,
         pieces: d.pieces,
-        customConnectorTypes: d.customConnectorTypes,
         undoStack: [...state.undoStack, snap],
         redoStack: [],
       };
