@@ -34,19 +34,21 @@ export function BomPanel() {
                 : r.kind === 'plate'
                   ? `${r.color === 'blue' ? 'Blue' : 'Yellow'} · ${r.size} plate`
                   : r.label;
-            const showSwatch = r.kind === 'pole' || r.kind === 'plate';
-            const swatchColor = showSwatch ? (r.color === 'blue' ? '#3b82f6' : '#facc15') : null;
+            const swatchColor =
+              r.kind === 'connector'
+                ? '#18181b'
+                : r.color === 'blue'
+                  ? '#3b82f6'
+                  : '#facc15';
             return (
               <tr key={idx} style={{ background: over ? '#fee2e2' : 'transparent', color: over ? '#b91c1c' : '#27272a' }}>
                 <td style={{ padding: '3px 2px' }}>
-                  {swatchColor && (
-                    <span style={{
-                      display: 'inline-block',
-                      width: 10, height: 10, borderRadius: 2,
-                      background: swatchColor,
-                      marginRight: 6, verticalAlign: 'middle',
-                    }} />
-                  )}
+                  <span style={{
+                    display: 'inline-block',
+                    width: 10, height: 10, borderRadius: 2,
+                    background: swatchColor,
+                    marginRight: 6, verticalAlign: 'middle',
+                  }} />
                   {label}
                 </td>
                 <td style={{ textAlign: 'right', padding: '3px 2px' }}>{r.count}</td>
