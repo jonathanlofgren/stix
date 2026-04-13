@@ -17,9 +17,7 @@ export function Palette() {
           {ALL_COLORS.flatMap((color: Color) =>
             ([1, 0.5] as PoleLength[]).map((length) => {
               const active = mode.kind === 'pole' && mode.length === length && mode.color === color;
-              const bg = color === 'blue'
-                ? (active ? '#1d4ed8' : '#3b82f6')
-                : (active ? '#ca8a04' : '#facc15');
+              const bg = color === 'blue' ? '#3b82f6' : '#facc15';
               const fg = color === 'blue' ? '#ffffff' : '#1f2937';
               const label = `${color === 'blue' ? 'Blue' : 'Yellow'} · ${length === 1 ? '1L' : '0.5L'}`;
               return (
@@ -29,9 +27,9 @@ export function Palette() {
                   style={{
                     background: bg,
                     color: fg,
-                    border: 'none',
-                    boxShadow: active ? 'inset 0 2px 4px rgba(0,0,0,0.25)' : '0 1px 2px rgba(0,0,0,0.08)',
-                    padding: '6px 8px',
+                    border: `2px solid ${active ? '#18181b' : 'transparent'}`,
+                    boxShadow: active ? 'none' : '0 1px 2px rgba(0,0,0,0.08)',
+                    padding: '4px 6px',
                     borderRadius: 4,
                     cursor: 'pointer',
                     fontSize: 12,
