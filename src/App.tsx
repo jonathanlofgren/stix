@@ -22,7 +22,7 @@ export default function App() {
             pointerEvents: 'none',
             boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
           }}>
-            Play-structure designer
+            Stix
           </div>
           {sceneEmpty && (
             <div style={{
