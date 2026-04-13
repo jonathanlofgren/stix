@@ -8,7 +8,7 @@ import {
   addVec, directionVector, oppositeDirection, scaleVec, snapVec, vecEquals,
 } from '../model/geometry';
 import {
-  IDENTITY_ROTATION, NUM_ROTATIONS, findRotationWithSocket, rotateSockets,
+  IDENTITY_ROTATION, NUM_ROTATIONS, rotateSockets,
 } from '../model/rotation';
 
 const AUTOSAVE_KEY = 'project-play:design';
@@ -100,6 +100,65 @@ function snapshot(state: State): Snapshot {
   return { pieces: state.pieces.map((p) => ({ ...p })) };
 }
 
+// After any placement, connect open pole-ends that coincide with an open socket on a connector.
+function resolveConnections(pieces: Piece[], connectorTypes: ConnectorType[]): Piece[] {
+  let current = pieces;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const connectors = current.filter((p): p is ConnectorPiece => p.kind === 'connector');
+    const usedSocket = (connectorId: string, socket: Direction): boolean =>
+      current.some((x) => x.kind === 'pole' && (
+        (x.from.pieceId === connectorId && x.from.socket === socket) ||
+        (x.to?.pieceId === connectorId && x.to.socket === socket)
+      ));
+
+    for (const p of current) {
+      if (p.kind !== 'pole' || p.to) continue;
+      const anchor = current.find((x) => x.id === p.from.pieceId);
+      if (!anchor || anchor.kind !== 'connector') continue;
+      const dir = p.from.socket;
+      const endPos: Vec3 = snapVec(addVec(anchor.position, scaleVec(directionVector(dir), p.length)));
+
+      const target = connectors.find((c) => c.id !== anchor.id && vecEquals(c.position, endPos));
+      if (!target) continue;
+
+      const type = connectorTypes.find((t) => t.id === target.typeId);
+      if (!type) continue;
+      const effective = rotateSockets(type.sockets, target.rotation);
+      const needed = oppositeDirection(dir);
+      if (!effective.includes(needed)) continue;
+      if (usedSocket(target.id, needed)) continue;
+
+      current = current.map((x) =>
+        x.id === p.id && x.kind === 'pole'
+          ? { ...x, to: { pieceId: target.id, socket: needed } }
+          : x,
+      );
+      changed = true;
+    }
+  }
+  return current;
+}
+
+// Find the rotation of `baseSockets` that covers the maximum number of `required` directions,
+// while at minimum always covering `mustInclude`. Returns null if mustInclude can never be covered.
+function findBestRotation(
+  baseSockets: Direction[],
+  required: Set<Direction>,
+  mustInclude: Direction,
+): number | null {
+  let best: { rot: number; score: number } | null = null;
+  for (let i = 0; i < NUM_ROTATIONS; i++) {
+    const rotated = new Set(rotateSockets(baseSockets, i));
+    if (!rotated.has(mustInclude)) continue;
+    let score = 0;
+    for (const d of required) if (rotated.has(d)) score += 1;
+    if (!best || score > best.score) best = { rot: i, score };
+  }
+  return best?.rot ?? null;
+}
+
 export const useDesignStore = create<State>((set, get) => {
   return {
     pieces: loadAutosave(),
@@ -183,6 +242,7 @@ export const useDesignStore = create<State>((set, get) => {
       if (mode.kind === 'idle') return undefined;
 
       const snap = snapshot(state);
+      const connectorTypes = state.allConnectorTypes();
 
       if (target.kind === 'connector-socket') {
         const anchor = state.pieces.find((p) => p.id === target.pieceId);
@@ -200,7 +260,8 @@ export const useDesignStore = create<State>((set, get) => {
             color: mode.color,
             from: { pieceId: target.pieceId, socket: target.socket },
           };
-          const next = { ...state, pieces: [...state.pieces, newPole], undoStack: [...state.undoStack, snap], redoStack: [] };
+          const resolved = resolveConnections([...state.pieces, newPole], connectorTypes);
+          const next = { ...state, pieces: resolved, undoStack: [...state.undoStack, snap], redoStack: [] };
           persist(next as State);
           set(next);
           return newPole.id;
@@ -213,15 +274,25 @@ export const useDesignStore = create<State>((set, get) => {
         if (!pole || pole.kind !== 'pole' || pole.to) return undefined;
 
         if (mode.kind === 'connector') {
-          const type = state.allConnectorTypes().find((t) => t.id === mode.typeId);
+          const type = connectorTypes.find((t) => t.id === mode.typeId);
           if (!type) return undefined;
-          const requiredSocket = oppositeDirection(target.direction);
-          const rot = findRotationWithSocket(type.sockets, requiredSocket);
-          if (rot == null) {
-            console.warn(`Connector ${type.id} cannot fit orientation needing socket ${requiredSocket}`);
+          if (state.pieces.some((p) => p.kind === 'connector' && vecEquals(p.position, target.worldPos))) {
             return undefined;
           }
-          if (state.pieces.some((p) => p.kind === 'connector' && vecEquals(p.position, target.worldPos))) {
+
+          // Gather ALL open pole-ends coincident with the placement position, plus the clicked one.
+          // For each, the new connector needs a socket opposite to the pole's outgoing direction.
+          const coincidentPoleEnds = state.openSockets().filter(
+            (o) => o.kind === 'pole-end' && vecEquals(o.worldPos, target.worldPos),
+          ) as Array<Extract<typeof target, { kind: 'pole-end' }>>;
+          const requiredSocketSet = new Set<Direction>(
+            coincidentPoleEnds.map((o) => oppositeDirection(o.direction)),
+          );
+          const mustInclude = oppositeDirection(target.direction);
+
+          const rot = findBestRotation(type.sockets, requiredSocketSet, mustInclude);
+          if (rot == null) {
+            console.warn(`Connector ${type.id} cannot fit orientation needing socket ${mustInclude}`);
             return undefined;
           }
           const newConnector: ConnectorPiece = {
@@ -231,15 +302,9 @@ export const useDesignStore = create<State>((set, get) => {
             position: target.worldPos,
             rotation: rot,
           };
-          const updatedPole: PolePiece = {
-            ...pole,
-            to: { pieceId: newConnector.id, socket: requiredSocket },
-          };
-          const newPieces: Piece[] = [
-            ...state.pieces.map((p) => (p.id === pole.id ? updatedPole : p)),
-            newConnector,
-          ];
-          const next = { ...state, pieces: newPieces, undoStack: [...state.undoStack, snap], redoStack: [] };
+          const newPieces: Piece[] = [...state.pieces, newConnector];
+          const resolved = resolveConnections(newPieces, connectorTypes);
+          const next = { ...state, pieces: resolved, undoStack: [...state.undoStack, snap], redoStack: [] };
           persist(next as State);
           set(next);
           return newConnector.id;
@@ -300,7 +365,8 @@ export const useDesignStore = create<State>((set, get) => {
         const newPieces = state.pieces.map((p) =>
           p.id === id && p.kind === 'connector' ? { ...p, rotation: candidate } : p,
         );
-        const next = { ...state, pieces: newPieces, undoStack: [...state.undoStack, snap], redoStack: [] };
+        const resolved = resolveConnections(newPieces, state.allConnectorTypes());
+        const next = { ...state, pieces: resolved, undoStack: [...state.undoStack, snap], redoStack: [] };
         persist(next as State);
         set(next);
         return true;
@@ -396,9 +462,10 @@ export const useDesignStore = create<State>((set, get) => {
     importDesign: (d) => {
       const state = get();
       const snap = snapshot(state);
+      const resolved = resolveConnections(d.pieces, state.allConnectorTypes());
       const next = {
         ...state,
-        pieces: d.pieces,
+        pieces: resolved,
         undoStack: [...state.undoStack, snap],
         redoStack: [],
       };
