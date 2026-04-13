@@ -13,6 +13,7 @@ export function Viewport() {
   const openSockets = useDesignStore((s) => s.openSockets);
   const deletePiece = useDesignStore((s) => s.deletePiece);
   const rotateConnector = useDesignStore((s) => s.rotateConnector);
+  const setMode = useDesignStore((s) => s.setMode);
 
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -25,7 +26,8 @@ export function Viewport() {
         return;
       }
       if (e.key === 'Escape') {
-        setSelected(null);
+        if (selected) setSelected(null);
+        else setMode({ kind: 'idle' });
         return;
       }
       if ((e.key === 'r' || e.key === 'R') && selected) {
@@ -38,7 +40,7 @@ export function Viewport() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selected, deletePiece, rotateConnector, pieces]);
+  }, [selected, deletePiece, rotateConnector, pieces, setMode]);
 
   const sockets = openSockets();
 
@@ -86,7 +88,13 @@ export function Viewport() {
             key={key}
             socket={s}
             enabled={socketEnabled(idx)}
-            onClick={placeAtSocket}
+            onClick={(target) => {
+              const newId = placeAtSocket(target);
+              if (newId) {
+                const placed = useDesignStore.getState().pieces.find((p) => p.id === newId);
+                if (placed?.kind === 'connector') setSelected(newId);
+              }
+            }}
           />
         );
       })}

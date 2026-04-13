@@ -39,7 +39,7 @@ type State = {
 
   // Actions
   setMode: (m: PlacementMode) => void;
-  placeAtSocket: (target: OpenSocket) => void;
+  placeAtSocket: (target: OpenSocket) => string | undefined;
   rotateConnector: (id: string, delta: number) => boolean;
   deletePiece: (id: string) => void;
   resetDesign: () => void;
@@ -185,21 +185,19 @@ export const useDesignStore = create<State>((set, get) => {
     placeAtSocket: (target) => {
       const state = get();
       const mode = state.mode;
-      if (mode.kind === 'idle') return;
+      if (mode.kind === 'idle') return undefined;
 
-      // Push undo snapshot BEFORE mutation.
       const snap = snapshot(state);
 
       if (target.kind === 'connector-socket') {
         const anchor = state.pieces.find((p) => p.id === target.pieceId);
-        if (!anchor || anchor.kind !== 'connector') return;
+        if (!anchor || anchor.kind !== 'connector') return undefined;
 
         if (mode.kind === 'pole') {
-          // Check socket free.
           const stillOpen = state.openSockets().some(
             (o) => o.kind === 'connector-socket' && o.pieceId === target.pieceId && o.socket === target.socket,
           );
-          if (!stillOpen) return;
+          if (!stillOpen) return undefined;
           const newPole: PolePiece = {
             id: uid('p'),
             kind: 'pole',
@@ -210,27 +208,26 @@ export const useDesignStore = create<State>((set, get) => {
           const next = { ...state, pieces: [...state.pieces, newPole], undoStack: [...state.undoStack, snap], redoStack: [] };
           persist(next as State);
           set(next);
-        } else if (mode.kind === 'connector') {
-          // User is dropping a connector directly onto a connector socket? That doesn't physically
-          // make sense — connectors need poles between them. Ignore.
-          return;
+          return newPole.id;
         }
-        return;
+        return undefined;
       }
 
       if (target.kind === 'pole-end') {
         const pole = state.pieces.find((p) => p.id === target.poleId);
-        if (!pole || pole.kind !== 'pole' || pole.to) return;
+        if (!pole || pole.kind !== 'pole' || pole.to) return undefined;
 
         if (mode.kind === 'connector') {
           const type = state.allConnectorTypes().find((t) => t.id === mode.typeId);
-          if (!type) return;
-          // The connector's socket facing the pole must be the opposite of pole direction.
+          if (!type) return undefined;
           const requiredSocket = oppositeDirection(target.direction);
           const rot = findRotationWithSocket(type.sockets, requiredSocket);
           if (rot == null) {
             console.warn(`Connector ${type.id} cannot fit orientation needing socket ${requiredSocket}`);
-            return;
+            return undefined;
+          }
+          if (state.pieces.some((p) => p.kind === 'connector' && vecEquals(p.position, target.worldPos))) {
+            return undefined;
           }
           const newConnector: ConnectorPiece = {
             id: uid('c'),
@@ -239,12 +236,6 @@ export const useDesignStore = create<State>((set, get) => {
             position: target.worldPos,
             rotation: rot,
           };
-          // Check no existing connector at that position.
-          if (state.pieces.some((p) => p.kind === 'connector' && vecEquals(p.position, target.worldPos))) {
-            // Connect existing connector if present instead.
-            return;
-          }
-          // Update the pole's `to` end.
           const updatedPole: PolePiece = {
             ...pole,
             to: { pieceId: newConnector.id, socket: requiredSocket },
@@ -256,11 +247,10 @@ export const useDesignStore = create<State>((set, get) => {
           const next = { ...state, pieces: newPieces, undoStack: [...state.undoStack, snap], redoStack: [] };
           persist(next as State);
           set(next);
-        } else if (mode.kind === 'pole') {
-          // Can't extend a pole with a pole — you need a connector between them. Ignore.
-          return;
+          return newConnector.id;
         }
       }
+      return undefined;
     },
 
     rotateConnector: (id, delta) => {
