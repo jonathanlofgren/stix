@@ -52,7 +52,7 @@ export function PlateMesh({ piece, selected, onSelect }: Props) {
       <meshStandardMaterial
         color={color}
         roughness={0.4}
-        transparent={plateOpacity < 1}
+        transparent
         opacity={plateOpacity}
       />
     </mesh>

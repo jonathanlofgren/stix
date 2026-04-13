@@ -77,20 +77,28 @@ export function Palette() {
             }),
           )}
         </div>
-        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#52525b', minWidth: 0 }}>
-          <span style={{ whiteSpace: 'nowrap' }}>Opacity</span>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={plateOpacity}
-            onChange={(e) => setPlateOpacity(parseFloat(e.target.value))}
-            style={{ flex: 1, minWidth: 0, width: '100%' }}
-          />
-          <span style={{ width: 30, textAlign: 'right', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-            {Math.round(plateOpacity * 100)}%
-          </span>
+        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#52525b' }}>
+          <span>See-through</span>
+          <button
+            role="switch"
+            aria-checked={plateOpacity < 1}
+            onClick={() => setPlateOpacity(plateOpacity < 1 ? 1 : 0.5)}
+            style={{
+              marginLeft: 'auto',
+              width: 32, height: 18, borderRadius: 9,
+              border: '1px solid #d4d4d8',
+              background: plateOpacity < 1 ? '#3b82f6' : '#e4e4e7',
+              position: 'relative', cursor: 'pointer', padding: 0,
+              transition: 'background 0.15s',
+            }}
+          >
+            <span style={{
+              position: 'absolute', top: 1, left: plateOpacity < 1 ? 15 : 1,
+              width: 14, height: 14, borderRadius: '50%',
+              background: '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+              transition: 'left 0.15s',
+            }} />
+          </button>
         </div>
       </div>
 
