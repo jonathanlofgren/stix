@@ -104,7 +104,14 @@ export function InventoryModal({ onClose }: Props) {
             const v = inventory.connectors[t.id];
             return (
               <Fragment key={t.id}>
-                <label style={{ fontSize: 12 }}>{t.label}</label>
+                <label style={{ fontSize: 12 }}>
+                  <span style={{
+                    display: 'inline-block', width: 10, height: 10, borderRadius: 2,
+                    background: '#18181b',
+                    marginRight: 6, verticalAlign: 'middle',
+                  }} />
+                  {t.label}
+                </label>
                 <input
                   type="number"
                   min={0}
