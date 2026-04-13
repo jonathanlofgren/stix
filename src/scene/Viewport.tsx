@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid } from '@react-three/drei';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useDesignStore } from '../store/designStore';
 import { ConnectorMesh } from './ConnectorMesh';
 import { PoleMesh } from './PoleMesh';
@@ -14,8 +14,8 @@ export function Viewport() {
   const deletePiece = useDesignStore((s) => s.deletePiece);
   const rotateConnector = useDesignStore((s) => s.rotateConnector);
   const setMode = useDesignStore((s) => s.setMode);
-
-  const [selected, setSelected] = useState<string | null>(null);
+  const selected = useDesignStore((s) => s.selectedId);
+  const setSelected = useDesignStore((s) => s.setSelected);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -40,11 +40,10 @@ export function Viewport() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selected, deletePiece, rotateConnector, pieces, setMode]);
+  }, [selected, deletePiece, rotateConnector, pieces, setMode, setSelected]);
 
   const sockets = openSockets();
 
-  // Which sockets are valid click targets under current mode?
   const socketEnabled = (idx: number): boolean => {
     const s = sockets[idx];
     if (mode.kind === 'idle') return false;

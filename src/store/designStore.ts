@@ -32,11 +32,13 @@ type State = {
   pieces: Piece[];
   inventory: Inventory;
   mode: PlacementMode;
+  selectedId: string | null;
   undoStack: Snapshot[];
   redoStack: Snapshot[];
 
   // Actions
   setMode: (m: PlacementMode) => void;
+  setSelected: (id: string | null) => void;
   placeAtSocket: (target: OpenSocket) => string | undefined;
   placeStartingConnector: (typeId: string) => string | undefined;
   rotateConnector: (id: string, delta: number) => boolean;
@@ -103,10 +105,15 @@ export const useDesignStore = create<State>((set, get) => {
     pieces: loadAutosave(),
     inventory: loadInventory(),
     mode: { kind: 'idle' },
+    selectedId: null,
     undoStack: [],
     redoStack: [],
 
-    setMode: (mode) => set({ mode }),
+    setMode: (mode) => {
+      if (mode.kind !== 'idle') set({ mode, selectedId: null });
+      else set({ mode });
+    },
+    setSelected: (id) => set({ selectedId: id }),
 
     allConnectorTypes: () => DEFAULT_CONNECTORS,
 
