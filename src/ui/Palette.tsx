@@ -8,6 +8,8 @@ export function Palette() {
   const setMode = useDesignStore((s) => s.setMode);
   const connectorTypes = useDesignStore((s) => s.allConnectorTypes)();
   const addCustomConnector = useDesignStore((s) => s.addCustomConnector);
+  const placeStartingConnector = useDesignStore((s) => s.placeStartingConnector);
+  const sceneEmpty = useDesignStore((s) => s.pieces.length === 0);
 
   const [showCustom, setShowCustom] = useState(false);
 
@@ -46,7 +48,14 @@ export function Palette() {
             return (
               <button
                 key={t.id}
-                onClick={() => setMode(active ? { kind: 'idle' } : { kind: 'connector', typeId: t.id })}
+                onClick={() => {
+                  if (sceneEmpty) {
+                    placeStartingConnector(t.id);
+                    setMode({ kind: 'idle' });
+                  } else {
+                    setMode(active ? { kind: 'idle' } : { kind: 'connector', typeId: t.id });
+                  }
+                }}
                 style={btnStyle(active, '#6b9fff')}
                 title={`Sockets: ${t.sockets.join(', ')}`}
               >

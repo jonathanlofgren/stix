@@ -40,6 +40,7 @@ type State = {
   // Actions
   setMode: (m: PlacementMode) => void;
   placeAtSocket: (target: OpenSocket) => string | undefined;
+  placeStartingConnector: (typeId: string) => string | undefined;
   rotateConnector: (id: string, delta: number) => boolean;
   deletePiece: (id: string) => void;
   resetDesign: () => void;
@@ -251,6 +252,24 @@ export const useDesignStore = create<State>((set, get) => {
         }
       }
       return undefined;
+    },
+
+    placeStartingConnector: (typeId) => {
+      const state = get();
+      const type = state.allConnectorTypes().find((t) => t.id === typeId);
+      if (!type) return undefined;
+      const snap = snapshot(state);
+      const piece: ConnectorPiece = {
+        id: uid('c'),
+        kind: 'connector',
+        typeId,
+        position: [0, 0, 0],
+        rotation: IDENTITY_ROTATION,
+      };
+      const next = { ...state, pieces: [...state.pieces, piece], undoStack: [...state.undoStack, snap], redoStack: [] };
+      persist(next as State);
+      set(next);
+      return piece.id;
     },
 
     rotateConnector: (id, delta) => {
