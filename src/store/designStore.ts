@@ -266,7 +266,6 @@ export const useDesignStore = create<State>((set, get) => {
       const type = state.allConnectorTypes().find((t) => t.id === piece.typeId);
       if (!type) return false;
 
-      // Sockets currently in use by connected poles (absolute world directions).
       const requiredSockets = new Set<Direction>();
       for (const p of state.pieces) {
         if (p.kind !== 'pole') continue;
@@ -274,23 +273,22 @@ export const useDesignStore = create<State>((set, get) => {
         if (p.to?.pieceId === id) requiredSockets.add(p.to.socket);
       }
 
-      // Try rotations starting from current + delta, wrapping.
+      const socketKey = (sockets: Direction[]): string =>
+        [...sockets].sort().join('|');
+      const currentKey = socketKey(rotateSockets(type.sockets, piece.rotation));
+
       const step = delta >= 0 ? 1 : -1;
-      const count = delta >= 0 ? delta : -delta;
       let tried = 0;
       let candidate = piece.rotation;
       while (tried < NUM_ROTATIONS) {
         candidate = ((candidate + step) % NUM_ROTATIONS + NUM_ROTATIONS) % NUM_ROTATIONS;
         tried += 1;
-        const rotated = new Set(rotateSockets(type.sockets, candidate));
-        const allCovered = Array.from(requiredSockets).every((d) => rotated.has(d));
+        const rotated = rotateSockets(type.sockets, candidate);
+        const rotatedSet = new Set(rotated);
+        const allCovered = Array.from(requiredSockets).every((d) => rotatedSet.has(d));
         if (!allCovered) continue;
-        if (candidate === piece.rotation) continue;
-        if (count > 1) {
-          // Consume additional steps by continuing the loop.
-          // (Rare case; typical usage is ±1.)
-          if (tried < count) continue;
-        }
+        // Skip rotations that are visually identical to the current one.
+        if (socketKey(rotated) === currentKey) continue;
         const snap = snapshot(state);
         const newPieces = state.pieces.map((p) =>
           p.id === id && p.kind === 'connector' ? { ...p, rotation: candidate } : p,
