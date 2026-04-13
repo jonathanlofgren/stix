@@ -377,15 +377,39 @@ export const useDesignStore = create<State>((set, get) => {
     deletePiece: (id) => {
       const state = get();
       const snap = snapshot(state);
-      // Cascade: if deleting a connector, also delete poles connected to it.
-      const piecesToRemove = new Set<string>([id]);
+      const newPieces: Piece[] = [];
       for (const p of state.pieces) {
-        if (p.kind === 'pole' && (p.from.pieceId === id || p.to?.pieceId === id)) {
-          piecesToRemove.add(p.id);
+        if (p.id === id) continue;
+        if (p.kind !== 'pole') {
+          newPieces.push(p);
+          continue;
         }
+        const fromGone = p.from.pieceId === id;
+        const toGone = p.to?.pieceId === id;
+        if (fromGone && toGone) {
+          // Both anchors gone — pole has nowhere to live.
+          continue;
+        }
+        if (fromGone) {
+          // Reroot the pole to its `to` anchor, dropping the deleted side.
+          if (!p.to) continue; // unreachable given fromGone && !toGone, but defensive
+          const reoriented: PolePiece = {
+            id: p.id,
+            kind: 'pole',
+            length: p.length,
+            color: p.color,
+            from: { pieceId: p.to.pieceId, socket: p.to.socket },
+          };
+          newPieces.push(reoriented);
+          continue;
+        }
+        if (toGone) {
+          const { to: _to, ...rest } = p;
+          newPieces.push(rest);
+          continue;
+        }
+        newPieces.push(p);
       }
-      const newPieces = state.pieces.filter((p) => !piecesToRemove.has(p.id));
-      // Also clear `to` references to deleted connectors on remaining poles (shouldn't happen given cascade).
       const next = { ...state, pieces: newPieces, undoStack: [...state.undoStack, snap], redoStack: [] };
       persist(next as State);
       set(next);
