@@ -11,6 +11,7 @@ export function InventoryModal({ onClose }: Props) {
   const setInventoryConnector = useDesignStore((s) => s.setInventoryConnector);
   const setInventoryPole = useDesignStore((s) => s.setInventoryPole);
   const setInventoryPlate = useDesignStore((s) => s.setInventoryPlate);
+  const resetInventory = useDesignStore((s) => s.resetInventory);
 
   const parseInput = (v: string): number | null => {
     if (v === '') return null;
@@ -41,6 +42,20 @@ export function InventoryModal({ onClose }: Props) {
         <p style={{ color: '#71717a', fontSize: 12, marginTop: 0 }}>
           How many of each piece do you own? Leave blank for unlimited. Warnings show when a design exceeds inventory.
         </p>
+        <div style={{ marginBottom: 12 }}>
+          <button
+            onClick={() => {
+              if (confirm('Reset inventory to default?')) resetInventory();
+            }}
+            style={{
+              background: '#ffffff', color: '#3f3f46',
+              border: '1px solid #d4d4d8', borderRadius: 4,
+              padding: '4px 10px', fontSize: 12, cursor: 'pointer',
+            }}
+          >
+            Reset to default
+          </button>
+        </div>
 
         <h3 style={{ fontSize: 12, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Poles</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '6px 10px', marginBottom: 16 }}>

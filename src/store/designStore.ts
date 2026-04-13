@@ -5,6 +5,7 @@ import type {
 } from '../model/types';
 import { plateEdgeLengths } from '../model/types';
 import { DEFAULT_CONNECTORS } from '../catalog/defaultConnectors';
+import { cloneDefaultInventory } from '../catalog/defaultInventory';
 import {
   addVec, directionVector, oppositeDirection, scaleVec, snapVec, vecEquals,
 } from '../model/geometry';
@@ -60,6 +61,7 @@ type State = {
   setInventoryConnector: (typeId: string, n: number | null) => void;
   setInventoryPole: (length: PoleLength, color: Color, n: number | null) => void;
   setInventoryPlate: (size: PlateSize, color: Color, n: number | null) => void;
+  resetInventory: () => void;
   setPlateOpacity: (v: number) => void;
   undo: () => void;
   redo: () => void;
@@ -88,7 +90,7 @@ function loadInventory(): Inventory {
       };
     }
   } catch { /* ignore */ }
-  return { connectors: {}, poles: {}, plates: {} };
+  return cloneDefaultInventory();
 }
 
 function loadPlateOpacity(): number {
@@ -636,6 +638,13 @@ export const useDesignStore = create<State>((set, get) => {
       if (n == null) delete plates[key];
       else plates[key] = n;
       const next = { ...state, inventory: { ...state.inventory, plates } };
+      persist(next as State);
+      set(next);
+    },
+
+    resetInventory: () => {
+      const state = get();
+      const next = { ...state, inventory: cloneDefaultInventory() };
       persist(next as State);
       set(next);
     },
