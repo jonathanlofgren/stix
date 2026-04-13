@@ -6,6 +6,7 @@ export const DEFAULT_CONNECTORS: ConnectorType[] = [
   { id: 'T', label: 'T', sockets: ['+X', '-X', '+Y'], builtIn: true },
   { id: 'plus', label: 'Plus (+)', sockets: ['+X', '-X', '+Y', '-Y'], builtIn: true },
   { id: 'corner3d', label: '3D corner', sockets: ['+X', '+Y', '+Z'], builtIn: true },
+  { id: 'T3d', label: '4-way 3D', sockets: ['+X', '-X', '+Y', '+Z'], builtIn: true },
   { id: '5-way', label: '5-way', sockets: ['+X', '-X', '+Y', '-Y', '+Z'], builtIn: true },
   { id: '6-way', label: '6-way', sockets: ['+X', '-X', '+Y', '-Y', '+Z', '-Z'], builtIn: true },
 ];
