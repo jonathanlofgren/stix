@@ -1,8 +1,7 @@
-import { BackSide } from 'three';
-import { useDesignStore } from '../store/designStore';
-import type { PolePiece } from '../model/types';
-import { addVec, directionVector, scaleVec } from '../model/geometry';
 import { useState } from 'react';
+import type { PolePiece } from '../model/types';
+import { useDesignStore } from '../store/designStore';
+import { addVec, directionVector, scaleVec } from '../model/geometry';
 
 type Props = {
   piece: PolePiece;
@@ -16,7 +15,6 @@ const COLOR_HEX: Record<string, string> = {
 };
 
 const RADIUS = 0.06;
-const OUTLINE_THICKNESS = 0.018;
 
 export function PoleMesh({ piece, selected, onSelect }: Props) {
   const connectorWorldPosition = useDesignStore((s) => s.connectorWorldPosition);
@@ -37,33 +35,18 @@ export function PoleMesh({ piece, selected, onSelect }: Props) {
   if (piece.from.socket === '+X' || piece.from.socket === '-X') rotation = [0, 0, Math.PI / 2];
   else if (piece.from.socket === '+Z' || piece.from.socket === '-Z') rotation = [Math.PI / 2, 0, 0];
 
-  const baseColor = COLOR_HEX[piece.color];
-  const showOutline = selected || hover;
-  const outlineColor = selected ? '#111827' : '#ffffff';
+  const color = selected ? '#ef4444' : hover ? '#60a5fa' : COLOR_HEX[piece.color];
 
   return (
-    <group
+    <mesh
       position={midPos}
       rotation={rotation}
       onPointerOver={(e) => { e.stopPropagation(); setHover(true); }}
       onPointerOut={() => setHover(false)}
       onClick={(e) => { e.stopPropagation(); onSelect(piece.id); }}
     >
-      {showOutline && (
-        <mesh>
-          <cylinderGeometry args={[
-            RADIUS + OUTLINE_THICKNESS,
-            RADIUS + OUTLINE_THICKNESS,
-            piece.length + OUTLINE_THICKNESS,
-            16,
-          ]} />
-          <meshBasicMaterial color={outlineColor} side={BackSide} />
-        </mesh>
-      )}
-      <mesh>
-        <cylinderGeometry args={[RADIUS, RADIUS, piece.length, 16]} />
-        <meshStandardMaterial color={baseColor} roughness={0.3} />
-      </mesh>
-    </group>
+      <cylinderGeometry args={[RADIUS, RADIUS, piece.length, 16]} />
+      <meshStandardMaterial color={color} roughness={0.3} />
+    </mesh>
   );
 }

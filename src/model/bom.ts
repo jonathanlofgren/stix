@@ -1,9 +1,18 @@
-import type { Piece, ConnectorType, Inventory, PoleLength, Color } from './types';
-import { poleKey } from './types';
+import type { Piece, ConnectorType, Inventory, PoleLength, Color, PlateSize } from './types';
+import { plateKey, poleKey } from './types';
 
 export type PoleBomRow = {
   kind: 'pole';
   length: PoleLength;
+  color: Color;
+  count: number;
+  owned: number | null;
+  over: number;
+};
+
+export type PlateBomRow = {
+  kind: 'plate';
+  size: PlateSize;
   color: Color;
   count: number;
   owned: number | null;
@@ -19,7 +28,9 @@ export type ConnectorBomRow = {
   over: number;
 };
 
-export type BomRow = PoleBomRow | ConnectorBomRow;
+export type BomRow = PoleBomRow | PlateBomRow | ConnectorBomRow;
+
+const KIND_ORDER: Record<BomRow['kind'], number> = { pole: 0, plate: 1, connector: 2 };
 
 export function computeBom(
   pieces: Piece[],
@@ -28,15 +39,21 @@ export function computeBom(
 ): BomRow[] {
   const connectorCounts = new Map<string, number>();
   const poleCounts = new Map<string, { length: PoleLength; color: Color; count: number }>();
+  const plateCounts = new Map<string, { size: PlateSize; color: Color; count: number }>();
 
   for (const p of pieces) {
     if (p.kind === 'connector') {
       connectorCounts.set(p.typeId, (connectorCounts.get(p.typeId) ?? 0) + 1);
-    } else {
+    } else if (p.kind === 'pole') {
       const key = poleKey(p.length, p.color);
       const existing = poleCounts.get(key);
       if (existing) existing.count += 1;
       else poleCounts.set(key, { length: p.length, color: p.color, count: 1 });
+    } else {
+      const key = plateKey(p.size, p.color);
+      const existing = plateCounts.get(key);
+      if (existing) existing.count += 1;
+      else plateCounts.set(key, { size: p.size, color: p.color, count: 1 });
     }
   }
 
@@ -63,11 +80,21 @@ export function computeBom(
     rows.push({ kind: 'pole', length, color, count, owned, over });
   }
 
+  for (const { size, color, count } of plateCounts.values()) {
+    const owned = inventory.plates[plateKey(size, color)] ?? null;
+    const over = owned == null ? 0 : Math.max(0, count - owned);
+    rows.push({ kind: 'plate', size, color, count, owned, over });
+  }
+
   rows.sort((a, b) => {
-    if (a.kind !== b.kind) return a.kind === 'pole' ? -1 : 1;
+    if (a.kind !== b.kind) return KIND_ORDER[a.kind] - KIND_ORDER[b.kind];
     if (a.kind === 'pole' && b.kind === 'pole') {
       if (a.color !== b.color) return a.color.localeCompare(b.color);
-      return a.length - b.length;
+      return b.length - a.length;
+    }
+    if (a.kind === 'plate' && b.kind === 'plate') {
+      if (a.color !== b.color) return a.color.localeCompare(b.color);
+      return a.size.localeCompare(b.size);
     }
     if (a.kind === 'connector' && b.kind === 'connector') {
       return a.label.localeCompare(b.label);

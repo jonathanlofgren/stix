@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 import { useDesignStore } from '../store/designStore';
 import { ConnectorMesh } from './ConnectorMesh';
 import { PoleMesh } from './PoleMesh';
+import { PlateMesh } from './PlateMesh';
+import { PlateGhost } from './PlateGhost';
 import { SocketHandle } from './SocketHandle';
 
 export function Viewport() {
@@ -16,6 +18,8 @@ export function Viewport() {
   const setMode = useDesignStore((s) => s.setMode);
   const selected = useDesignStore((s) => s.selectedId);
   const setSelected = useDesignStore((s) => s.setSelected);
+  const candidatePlates = useDesignStore((s) => s.candidatePlates);
+  const placePlate = useDesignStore((s) => s.placePlate);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -72,13 +76,24 @@ export function Viewport() {
 
       <OrbitControls makeDefault />
 
-      {pieces.map((p) =>
-        p.kind === 'connector' ? (
-          <ConnectorMesh key={p.id} piece={p} selected={selected === p.id} onSelect={setSelected} />
-        ) : (
-          <PoleMesh key={p.id} piece={p} selected={selected === p.id} onSelect={setSelected} />
-        ),
-      )}
+      {pieces.map((p) => {
+        if (p.kind === 'connector') {
+          return <ConnectorMesh key={p.id} piece={p} selected={selected === p.id} onSelect={setSelected} />;
+        }
+        if (p.kind === 'pole') {
+          return <PoleMesh key={p.id} piece={p} selected={selected === p.id} onSelect={setSelected} />;
+        }
+        return <PlateMesh key={p.id} piece={p} selected={selected === p.id} onSelect={setSelected} />;
+      })}
+
+      {mode.kind === 'plate' && candidatePlates(mode.size).map((c) => (
+        <PlateGhost
+          key={`${c.minCorner.join(',')}-${c.maxCorner.join(',')}`}
+          candidate={c}
+          color={mode.color}
+          onClick={(cand) => { placePlate(cand, mode.size, mode.color); }}
+        />
+      ))}
 
       {sockets.map((s, idx) => {
         const key = s.kind === 'connector-socket' ? `${s.pieceId}-${s.socket}` : `pole-${s.poleId}`;

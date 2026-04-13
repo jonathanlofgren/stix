@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { useDesignStore } from '../store/designStore';
-import { ALL_COLORS, ALL_LENGTHS, poleKey } from '../model/types';
-import type { Color, PoleLength } from '../model/types';
+import { ALL_COLORS, ALL_LENGTHS, ALL_PLATE_SIZES, plateKey, poleKey } from '../model/types';
+import type { Color, PlateSize, PoleLength } from '../model/types';
 
 type Props = { onClose: () => void };
 
@@ -10,6 +10,7 @@ export function InventoryModal({ onClose }: Props) {
   const inventory = useDesignStore((s) => s.inventory);
   const setInventoryConnector = useDesignStore((s) => s.setInventoryConnector);
   const setInventoryPole = useDesignStore((s) => s.setInventoryPole);
+  const setInventoryPlate = useDesignStore((s) => s.setInventoryPlate);
 
   const parseInput = (v: string): number | null => {
     if (v === '') return null;
@@ -61,6 +62,34 @@ export function InventoryModal({ onClose }: Props) {
                     min={0}
                     value={v ?? ''}
                     onChange={(e) => setInventoryPole(length, color, parseInput(e.target.value))}
+                    style={inputStyle}
+                  />
+                </Fragment>
+              );
+            }),
+          )}
+        </div>
+
+        <h3 style={{ fontSize: 12, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Plates</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '6px 10px', marginBottom: 16 }}>
+          {ALL_COLORS.flatMap((color: Color) =>
+            ALL_PLATE_SIZES.map((size: PlateSize) => {
+              const v = inventory.plates[plateKey(size, color)];
+              return (
+                <Fragment key={`plate-${size}-${color}`}>
+                  <label style={{ fontSize: 12 }}>
+                    <span style={{
+                      display: 'inline-block', width: 10, height: 10, borderRadius: 2,
+                      background: color === 'blue' ? '#3b82f6' : '#facc15',
+                      marginRight: 6, verticalAlign: 'middle',
+                    }} />
+                    {size} plate · {color}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={v ?? ''}
+                    onChange={(e) => setInventoryPlate(size, color, parseInput(e.target.value))}
                     style={inputStyle}
                   />
                 </Fragment>

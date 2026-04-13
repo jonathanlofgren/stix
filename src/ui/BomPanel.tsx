@@ -28,17 +28,22 @@ export function BomPanel() {
         <tbody>
           {rows.map((r, idx) => {
             const over = r.over > 0;
-            const label = r.kind === 'pole'
-              ? `${r.length === 1 ? 'Full' : 'Half'} pole · ${r.color}`
-              : r.label;
+            const label =
+              r.kind === 'pole'
+                ? `${r.color === 'blue' ? 'Blue' : 'Yellow'} · ${r.length === 1 ? '1L' : '0.5L'} pole`
+                : r.kind === 'plate'
+                  ? `${r.color === 'blue' ? 'Blue' : 'Yellow'} · ${r.size} plate`
+                  : r.label;
+            const showSwatch = r.kind === 'pole' || r.kind === 'plate';
+            const swatchColor = showSwatch ? (r.color === 'blue' ? '#3b82f6' : '#facc15') : null;
             return (
               <tr key={idx} style={{ background: over ? '#fee2e2' : 'transparent', color: over ? '#b91c1c' : '#27272a' }}>
                 <td style={{ padding: '3px 2px' }}>
-                  {r.kind === 'pole' && (
+                  {swatchColor && (
                     <span style={{
                       display: 'inline-block',
                       width: 10, height: 10, borderRadius: 2,
-                      background: r.color === 'blue' ? '#3b82f6' : '#facc15',
+                      background: swatchColor,
                       marginRight: 6, verticalAlign: 'middle',
                     }} />
                   )}

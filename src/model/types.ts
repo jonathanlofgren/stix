@@ -36,19 +36,41 @@ export type PolePiece = {
   to?: { pieceId: string; socket: Direction };
 };
 
-export type Piece = ConnectorPiece | PolePiece;
+export type PlateSize = '1x1' | '1x0.5';
+export const ALL_PLATE_SIZES: PlateSize[] = ['1x1', '1x0.5'];
+
+export type PlatePiece = {
+  id: string;
+  kind: 'plate';
+  size: PlateSize;
+  color: Color;
+  // Opposite corners of the plate in world space. They share one coordinate (the
+  // plane-normal axis); the other two coordinates differ by the plate's extents.
+  // Stored with min <= max componentwise for canonical form.
+  minCorner: Vec3;
+  maxCorner: Vec3;
+};
+
+export type Piece = ConnectorPiece | PolePiece | PlatePiece;
 
 export type Design = {
   pieces: Piece[];
 };
 
 export type Inventory = {
-  // connector counts: keyed by connector typeId
   connectors: Record<string, number>;
-  // pole counts: keyed by `${length}-${color}`
   poles: Record<string, number>;
+  plates: Record<string, number>;
 };
 
 export function poleKey(length: PoleLength, color: Color): string {
   return `${length}-${color}`;
+}
+
+export function plateKey(size: PlateSize, color: Color): string {
+  return `${size}-${color}`;
+}
+
+export function plateEdgeLengths(size: PlateSize): [number, number] {
+  return size === '1x1' ? [1, 1] : [1, 0.5];
 }

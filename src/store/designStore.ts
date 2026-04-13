@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import type {
-  Piece, ConnectorPiece, PolePiece, ConnectorType, Design, Inventory,
+  Piece, ConnectorPiece, PolePiece, PlatePiece, PlateSize, ConnectorType, Design, Inventory,
   Direction, Color, PoleLength, Vec3,
 } from '../model/types';
+import { plateEdgeLengths } from '../model/types';
 import { DEFAULT_CONNECTORS } from '../catalog/defaultConnectors';
 import {
   addVec, directionVector, oppositeDirection, scaleVec, snapVec, vecEquals,
@@ -13,11 +14,21 @@ import {
 
 const AUTOSAVE_KEY = 'project-play:design';
 const INVENTORY_KEY = 'project-play:inventory';
+const PLATE_OPACITY_KEY = 'project-play:plateOpacity';
 
 type PlacementMode =
   | { kind: 'idle' }
   | { kind: 'pole'; length: PoleLength; color: Color }
-  | { kind: 'connector'; typeId: string };
+  | { kind: 'connector'; typeId: string }
+  | { kind: 'plate'; size: PlateSize; color: Color };
+
+export type PlateCandidate = {
+  minCorner: Vec3;
+  maxCorner: Vec3;
+  // The in-plane axes (the two axes along which the plate has extent).
+  // The third axis is the plane normal.
+  inPlaneAxes: [0 | 1 | 2, 0 | 1 | 2];
+};
 
 // An open socket is either a connector-socket or a pole-free-end.
 export type OpenSocket =
@@ -33,6 +44,7 @@ type State = {
   inventory: Inventory;
   mode: PlacementMode;
   selectedId: string | null;
+  plateOpacity: number;
   undoStack: Snapshot[];
   redoStack: Snapshot[];
 
@@ -41,11 +53,14 @@ type State = {
   setSelected: (id: string | null) => void;
   placeAtSocket: (target: OpenSocket) => string | undefined;
   placeStartingConnector: (typeId: string) => string | undefined;
+  placePlate: (candidate: PlateCandidate, size: PlateSize, color: Color) => string | undefined;
   rotateConnector: (id: string, delta: number) => boolean;
   deletePiece: (id: string) => void;
   resetDesign: () => void;
   setInventoryConnector: (typeId: string, n: number | null) => void;
   setInventoryPole: (length: PoleLength, color: Color, n: number | null) => void;
+  setInventoryPlate: (size: PlateSize, color: Color, n: number | null) => void;
+  setPlateOpacity: (v: number) => void;
   undo: () => void;
   redo: () => void;
   exportDesign: () => Design;
@@ -56,6 +71,7 @@ type State = {
   connectorWorldPosition: (id: string) => Vec3 | null;
   connectorEffectiveSockets: (piece: ConnectorPiece) => Direction[];
   openSockets: () => OpenSocket[];
+  candidatePlates: (size: PlateSize) => PlateCandidate[];
 };
 
 const uid = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -63,9 +79,27 @@ const uid = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2,
 function loadInventory(): Inventory {
   try {
     const raw = localStorage.getItem(INVENTORY_KEY);
-    if (raw) return JSON.parse(raw) as Inventory;
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<Inventory>;
+      return {
+        connectors: parsed.connectors ?? {},
+        poles: parsed.poles ?? {},
+        plates: parsed.plates ?? {},
+      };
+    }
   } catch { /* ignore */ }
-  return { connectors: {}, poles: {} };
+  return { connectors: {}, poles: {}, plates: {} };
+}
+
+function loadPlateOpacity(): number {
+  try {
+    const raw = localStorage.getItem(PLATE_OPACITY_KEY);
+    if (raw) {
+      const v = parseFloat(raw);
+      if (!Number.isNaN(v) && v >= 0 && v <= 1) return v;
+    }
+  } catch { /* ignore */ }
+  return 1;
 }
 
 function loadAutosave(): Piece[] {
@@ -93,11 +127,129 @@ function persist(state: State) {
       JSON.stringify({ pieces: state.pieces } satisfies Design),
     );
     localStorage.setItem(INVENTORY_KEY, JSON.stringify(state.inventory));
+    localStorage.setItem(PLATE_OPACITY_KEY, String(state.plateOpacity));
   } catch { /* ignore */ }
 }
 
 function snapshot(state: State): Snapshot {
   return { pieces: state.pieces.map((p) => ({ ...p })) };
+}
+
+function posKey(v: Vec3): string {
+  return `${v[0]},${v[1]},${v[2]}`;
+}
+
+// Return true if there is exactly one pole of `length` whose endpoints are the two given connectors.
+function edgeHasPole(pieces: Piece[], connectorA: string, connectorB: string, length: number): boolean {
+  for (const p of pieces) {
+    if (p.kind !== 'pole' || p.length !== length) continue;
+    const aFrom = p.from.pieceId === connectorA && p.to?.pieceId === connectorB;
+    const bFrom = p.from.pieceId === connectorB && p.to?.pieceId === connectorA;
+    if (aFrom || bFrom) return true;
+  }
+  return false;
+}
+
+// Enumerate all rectangles in the design that can host a plate of the given size.
+function enumerateCandidates(pieces: Piece[], size: PlateSize): PlateCandidate[] {
+  const [la, lb] = plateEdgeLengths(size);
+  const connectors = pieces.filter((p): p is ConnectorPiece => p.kind === 'connector');
+  const byPos = new Map<string, ConnectorPiece>();
+  for (const c of connectors) byPos.set(posKey(c.position), c);
+
+  const existingPlateKeys = new Set<string>();
+  for (const p of pieces) {
+    if (p.kind !== 'plate') continue;
+    existingPlateKeys.add(`${posKey(p.minCorner)}|${posKey(p.maxCorner)}`);
+  }
+
+  const results: PlateCandidate[] = [];
+  const axisPairs: Array<[0 | 1 | 2, 0 | 1 | 2]> = [[0, 1], [0, 2], [1, 2]];
+
+  // For 1x0.5, try both edge-length orderings so either in-plane axis can be the short one.
+  const edgeAssignments: Array<[number, number]> = la === lb ? [[la, lb]] : [[la, lb], [lb, la]];
+
+  for (const c1 of connectors) {
+    const p1 = c1.position;
+    for (const [ax1, ax2] of axisPairs) {
+      for (const [eA, eB] of edgeAssignments) {
+        const p2: Vec3 = [...p1] as Vec3;
+        p2[ax1] += eA;
+        const p3: Vec3 = [...p1] as Vec3;
+        p3[ax2] += eB;
+        const p4: Vec3 = [...p1] as Vec3;
+        p4[ax1] += eA;
+        p4[ax2] += eB;
+
+        const c2 = byPos.get(posKey(p2));
+        const c3 = byPos.get(posKey(p3));
+        const c4 = byPos.get(posKey(p4));
+        if (!c2 || !c3 || !c4) continue;
+
+        // Ensure c1 is lexicographic min of the four corners to dedupe (each rect found 4 times).
+        const corners: Vec3[] = [p1, p2, p3, p4];
+        const min = corners.reduce((a, b) =>
+          a[0] < b[0] || (a[0] === b[0] && (a[1] < b[1] || (a[1] === b[1] && a[2] <= b[2]))) ? a : b,
+        );
+        if (!vecEquals(min, p1)) continue;
+
+        // Check the four edges each have an exact-length pole between them.
+        // Edges: p1-p2 (length eA along ax1), p3-p4 (length eA along ax1),
+        //        p1-p3 (length eB along ax2), p2-p4 (length eB along ax2).
+        if (!edgeHasPole(pieces, c1.id, c2.id, eA)) continue;
+        if (!edgeHasPole(pieces, c3.id, c4.id, eA)) continue;
+        if (!edgeHasPole(pieces, c1.id, c3.id, eB)) continue;
+        if (!edgeHasPole(pieces, c2.id, c4.id, eB)) continue;
+
+        const maxCorner = p4;
+        const candidateKey = `${posKey(p1)}|${posKey(maxCorner)}`;
+        if (existingPlateKeys.has(candidateKey)) continue;
+
+        results.push({ minCorner: p1, maxCorner, inPlaneAxes: [ax1, ax2] });
+      }
+    }
+  }
+
+  return results;
+}
+
+// Drop plates that no longer have a fully-connected 4-pole rectangle.
+function validatePlates(pieces: Piece[]): Piece[] {
+  const connectorIds = new Set(pieces.filter((p) => p.kind === 'connector').map((p) => p.id));
+  const byPos = new Map<string, ConnectorPiece>();
+  for (const p of pieces) {
+    if (p.kind === 'connector') byPos.set(posKey(p.position), p);
+  }
+  return pieces.filter((p) => {
+    if (p.kind !== 'plate') return true;
+    const diff: Vec3 = [
+      p.maxCorner[0] - p.minCorner[0],
+      p.maxCorner[1] - p.minCorner[1],
+      p.maxCorner[2] - p.minCorner[2],
+    ];
+    // Identify the two in-plane axes (nonzero diff).
+    const axes: (0 | 1 | 2)[] = [];
+    for (let i = 0; i < 3; i++) if (diff[i] !== 0) axes.push(i as 0 | 1 | 2);
+    if (axes.length !== 2) return false;
+    const [ax1, ax2] = axes;
+    const p1 = p.minCorner;
+    const p2: Vec3 = [...p1] as Vec3; p2[ax1] = p.maxCorner[ax1];
+    const p3: Vec3 = [...p1] as Vec3; p3[ax2] = p.maxCorner[ax2];
+    const p4 = p.maxCorner;
+    const c1 = byPos.get(posKey(p1));
+    const c2 = byPos.get(posKey(p2));
+    const c3 = byPos.get(posKey(p3));
+    const c4 = byPos.get(posKey(p4));
+    if (!c1 || !c2 || !c3 || !c4) return false;
+    if (!connectorIds.has(c1.id) || !connectorIds.has(c2.id) || !connectorIds.has(c3.id) || !connectorIds.has(c4.id)) return false;
+    const eA = diff[ax1];
+    const eB = diff[ax2];
+    if (!edgeHasPole(pieces, c1.id, c2.id, eA)) return false;
+    if (!edgeHasPole(pieces, c3.id, c4.id, eA)) return false;
+    if (!edgeHasPole(pieces, c1.id, c3.id, eB)) return false;
+    if (!edgeHasPole(pieces, c2.id, c4.id, eB)) return false;
+    return true;
+  });
 }
 
 // After any placement, connect open pole-ends that coincide with an open socket on a connector.
@@ -165,6 +317,7 @@ export const useDesignStore = create<State>((set, get) => {
     inventory: loadInventory(),
     mode: { kind: 'idle' },
     selectedId: null,
+    plateOpacity: loadPlateOpacity(),
     undoStack: [],
     redoStack: [],
 
@@ -186,7 +339,7 @@ export const useDesignStore = create<State>((set, get) => {
       const piece = get().pieces.find((p) => p.id === id);
       if (!piece) return null;
       if (piece.kind === 'connector') return piece.position;
-      // Pole: position is anchored via from.
+      if (piece.kind !== 'pole') return null;
       const anchor = get().pieces.find((p) => p.id === piece.from.pieceId);
       if (!anchor || anchor.kind !== 'connector') return null;
       return anchor.position;
@@ -331,6 +484,30 @@ export const useDesignStore = create<State>((set, get) => {
       return piece.id;
     },
 
+    placePlate: (candidate, size, color) => {
+      const state = get();
+      // Re-verify the candidate still matches (design may have changed).
+      const still = enumerateCandidates(state.pieces, size).some(
+        (c) => vecEquals(c.minCorner, candidate.minCorner) && vecEquals(c.maxCorner, candidate.maxCorner),
+      );
+      if (!still) return undefined;
+      const snap = snapshot(state);
+      const piece: PlatePiece = {
+        id: uid('pl'),
+        kind: 'plate',
+        size,
+        color,
+        minCorner: candidate.minCorner,
+        maxCorner: candidate.maxCorner,
+      };
+      const next = { ...state, pieces: [...state.pieces, piece], undoStack: [...state.undoStack, snap], redoStack: [] };
+      persist(next as State);
+      set(next);
+      return piece.id;
+    },
+
+    candidatePlates: (size) => enumerateCandidates(get().pieces, size),
+
     rotateConnector: (id, delta) => {
       const state = get();
       const piece = state.pieces.find((p) => p.id === id);
@@ -410,7 +587,8 @@ export const useDesignStore = create<State>((set, get) => {
         }
         newPieces.push(p);
       }
-      const next = { ...state, pieces: newPieces, undoStack: [...state.undoStack, snap], redoStack: [] };
+      const validated = validatePlates(newPieces);
+      const next = { ...state, pieces: validated, undoStack: [...state.undoStack, snap], redoStack: [] };
       persist(next as State);
       set(next);
     },
@@ -449,6 +627,23 @@ export const useDesignStore = create<State>((set, get) => {
       const next = { ...state, inventory: { ...state.inventory, poles } };
       persist(next as State);
       set(next);
+    },
+
+    setInventoryPlate: (size, color, n) => {
+      const state = get();
+      const key = `${size}-${color}`;
+      const plates = { ...state.inventory.plates };
+      if (n == null) delete plates[key];
+      else plates[key] = n;
+      const next = { ...state, inventory: { ...state.inventory, plates } };
+      persist(next as State);
+      set(next);
+    },
+
+    setPlateOpacity: (v) => {
+      const clamped = Math.max(0, Math.min(1, v));
+      set({ plateOpacity: clamped });
+      persist(get());
     },
 
     undo: () => {
