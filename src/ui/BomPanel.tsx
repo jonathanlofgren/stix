@@ -1,12 +1,20 @@
 import { useMemo } from 'react';
 import { useDesignStore } from '../store/designStore';
-import { computeBom } from '../model/bom';
+import { computeBom, type BomRow } from '../model/bom';
+import type { Piece } from '../model/types';
 import { DEFAULT_CONNECTORS } from '../catalog/defaultConnectors';
 import { COLOR_HEX, CONNECTOR_SWATCH, sectionHeader, swatch } from './theme';
+
+function matchesRow(p: Piece, r: BomRow): boolean {
+  if (r.kind === 'connector') return p.kind === 'connector' && p.typeId === r.typeId;
+  if (r.kind === 'pole') return p.kind === 'pole' && p.length === r.length && p.color === r.color;
+  return p.kind === 'plate' && p.size === r.size && p.color === r.color;
+}
 
 export function BomPanel() {
   const pieces = useDesignStore((s) => s.pieces);
   const inventory = useDesignStore((s) => s.inventory);
+  const selectMany = useDesignStore((s) => s.selectMany);
 
   const rows = useMemo(
     () => computeBom(pieces, DEFAULT_CONNECTORS, inventory),
@@ -38,8 +46,21 @@ export function BomPanel() {
                   ? `${r.size === '1x1' ? 'Full' : 'Half'} plate`
                   : r.label;
             const swatchColor = r.kind === 'connector' ? CONNECTOR_SWATCH : COLOR_HEX[r.color];
+            const onSelect = () => {
+              const ids = pieces.filter((p) => matchesRow(p, r)).map((p) => p.id);
+              selectMany(ids);
+            };
             return (
-              <tr key={idx} style={{ background: over ? '#fee2e2' : 'transparent', color: over ? '#b91c1c' : '#27272a' }}>
+              <tr
+                key={idx}
+                onClick={onSelect}
+                title={`Select all ${r.count}`}
+                style={{
+                  background: over ? '#fee2e2' : 'transparent',
+                  color: over ? '#b91c1c' : '#27272a',
+                  cursor: 'pointer',
+                }}
+              >
                 <td style={{ padding: '3px 2px' }}>
                   <span style={swatch(swatchColor)} />
                   {label}

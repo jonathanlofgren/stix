@@ -41,6 +41,7 @@ type State = {
   // Actions
   setMode: (m: PlacementMode) => void;
   setSelected: (id: string | null, opts?: { additive?: boolean }) => void;
+  selectMany: (ids: string[]) => void;
   clearSelection: () => void;
   placeAtSocket: (target: OpenSocket) => string | undefined;
   placeStartingConnector: (typeId: string) => string | undefined;
@@ -137,6 +138,7 @@ export const useDesignStore = create<State>((set, get) => ({
     }
     return { selectedIds: new Set([id]) };
   }),
+  selectMany: (ids) => set({ selectedIds: new Set(ids) }),
   clearSelection: () => set({ selectedIds: new Set() }),
 
   connectorEffectiveSockets: (piece) => effectiveSockets(piece, DEFAULT_CONNECTORS),
