@@ -33,9 +33,9 @@ export function BomPanel() {
             const over = r.over > 0;
             const label =
               r.kind === 'pole'
-                ? `${r.color === 'blue' ? 'Blue' : 'Yellow'} · ${r.length === 1 ? '1L' : '0.5L'} pole`
+                ? `${r.length === 1 ? 'Full' : 'Half'} pole`
                 : r.kind === 'plate'
-                  ? `${r.color === 'blue' ? 'Blue' : 'Yellow'} · ${r.size} plate`
+                  ? `${r.size === '1x1' ? 'Full' : 'Half'} plate`
                   : r.label;
             const swatchColor = r.kind === 'connector' ? CONNECTOR_SWATCH : COLOR_HEX[r.color];
             return (

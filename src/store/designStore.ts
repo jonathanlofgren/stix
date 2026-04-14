@@ -53,6 +53,7 @@ type State = {
   setInventoryPole: (length: PoleLength, color: Color, n: number | null) => void;
   setInventoryPlate: (size: PlateSize, color: Color, n: number | null) => void;
   resetInventory: () => void;
+  clearInventory: () => void;
   setPlateOpacity: (v: number) => void;
   undo: () => void;
   redo: () => void;
@@ -372,6 +373,8 @@ export const useDesignStore = create<State>((set, get) => ({
     }),
 
   resetInventory: () => set({ inventory: cloneDefaultInventory() }),
+
+  clearInventory: () => set({ inventory: { connectors: {}, poles: {}, plates: {} } }),
 
   setPlateOpacity: (v) => set({ plateOpacity: Math.max(0, Math.min(1, v)) }),
 

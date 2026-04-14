@@ -86,15 +86,17 @@ export function computeBom(
     rows.push({ kind: 'plate', size, color, count, owned, over });
   }
 
+  const PLATE_SIZE_ORDER: Record<PlateSize, number> = { '1x1': 0, '1x0.5': 1 };
+
   rows.sort((a, b) => {
     if (a.kind !== b.kind) return KIND_ORDER[a.kind] - KIND_ORDER[b.kind];
     if (a.kind === 'pole' && b.kind === 'pole') {
-      if (a.color !== b.color) return a.color.localeCompare(b.color);
-      return b.length - a.length;
+      if (a.length !== b.length) return b.length - a.length;
+      return a.color.localeCompare(b.color);
     }
     if (a.kind === 'plate' && b.kind === 'plate') {
-      if (a.color !== b.color) return a.color.localeCompare(b.color);
-      return a.size.localeCompare(b.size);
+      if (a.size !== b.size) return PLATE_SIZE_ORDER[a.size] - PLATE_SIZE_ORDER[b.size];
+      return a.color.localeCompare(b.color);
     }
     if (a.kind === 'connector' && b.kind === 'connector') {
       return a.label.localeCompare(b.label);

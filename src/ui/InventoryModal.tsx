@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { useDesignStore } from '../store/designStore';
-import { ALL_COLORS, ALL_LENGTHS, ALL_PLATE_SIZES, plateKey, poleKey } from '../model/types';
+import { ALL_COLORS, ALL_PLATE_SIZES, plateKey, poleKey } from '../model/types';
 import type { Color, PlateSize, PoleLength } from '../model/types';
 import { DEFAULT_CONNECTORS } from '../catalog/defaultConnectors';
 import { COLOR_HEX, CONNECTOR_SWATCH, inputStyle, sectionHeader, swatch } from './theme';
@@ -14,6 +14,7 @@ export function InventoryModal({ onClose }: Props) {
   const setInventoryPole = useDesignStore((s) => s.setInventoryPole);
   const setInventoryPlate = useDesignStore((s) => s.setInventoryPlate);
   const resetInventory = useDesignStore((s) => s.resetInventory);
+  const clearInventory = useDesignStore((s) => s.clearInventory);
 
   const parseInput = (v: string): number | null => {
     if (v === '') return null;
@@ -44,7 +45,7 @@ export function InventoryModal({ onClose }: Props) {
         <p style={{ color: '#71717a', fontSize: 12, marginTop: 0 }}>
           How many of each piece do you own? Leave blank for unlimited. Warnings show when a design exceeds inventory.
         </p>
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ marginBottom: 12, display: 'flex', gap: 6 }}>
           <button
             onClick={() => {
               if (confirm('Reset inventory to default?')) resetInventory();
@@ -57,18 +58,30 @@ export function InventoryModal({ onClose }: Props) {
           >
             Reset to default
           </button>
+          <button
+            onClick={() => {
+              if (confirm('Set all pieces to unlimited?')) clearInventory();
+            }}
+            style={{
+              background: '#ffffff', color: '#3f3f46',
+              border: '1px solid #d4d4d8', borderRadius: 4,
+              padding: '4px 10px', fontSize: 12, cursor: 'pointer',
+            }}
+          >
+            Unlimited (clear all)
+          </button>
         </div>
 
         <h3 style={{ ...sectionHeader, marginBottom: 6 }}>Poles</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '6px 10px', marginBottom: 16 }}>
-          {ALL_LENGTHS.flatMap((length: PoleLength) =>
+          {([1, 0.5] as PoleLength[]).flatMap((length) =>
             ALL_COLORS.map((color: Color) => {
               const v = inventory.poles[poleKey(length, color)];
               return (
                 <Fragment key={`${length}-${color}`}>
                   <label style={{ fontSize: 12 }}>
                     <span style={swatch(COLOR_HEX[color])} />
-                    {length === 1 ? 'Full' : 'Half'} pole · {color}
+                    {length === 1 ? 'Full' : 'Half'} pole
                   </label>
                   <input
                     type="number"
@@ -85,14 +98,14 @@ export function InventoryModal({ onClose }: Props) {
 
         <h3 style={{ ...sectionHeader, marginBottom: 6 }}>Plates</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '6px 10px', marginBottom: 16 }}>
-          {ALL_COLORS.flatMap((color: Color) =>
-            ALL_PLATE_SIZES.map((size: PlateSize) => {
+          {ALL_PLATE_SIZES.flatMap((size: PlateSize) =>
+            ALL_COLORS.map((color: Color) => {
               const v = inventory.plates[plateKey(size, color)];
               return (
                 <Fragment key={`plate-${size}-${color}`}>
                   <label style={{ fontSize: 12 }}>
                     <span style={swatch(COLOR_HEX[color])} />
-                    {size} plate · {color}
+                    {size === '1x1' ? 'Full' : 'Half'} plate
                   </label>
                   <input
                     type="number"

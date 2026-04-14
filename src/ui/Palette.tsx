@@ -1,17 +1,41 @@
+import { useMemo } from 'react';
 import { useDesignStore } from '../store/designStore';
-import { ALL_COLORS, ALL_PLATE_SIZES } from '../model/types';
+import { ALL_COLORS, ALL_PLATE_SIZES, plateKey, poleKey } from '../model/types';
 import type { Color, PlateSize, PoleLength } from '../model/types';
 import { DEFAULT_CONNECTORS } from '../catalog/defaultConnectors';
-import { connectorBtn, kbd, paletteSwatchBtn, sectionHeader } from './theme';
+import { connectorBtn, kbd, paletteSwatchBtn, remainingBadge, sectionHeader } from './theme';
 
 export function Palette() {
   const mode = useDesignStore((s) => s.mode);
   const setMode = useDesignStore((s) => s.setMode);
   const connectorTypes = DEFAULT_CONNECTORS;
   const placeStartingConnector = useDesignStore((s) => s.placeStartingConnector);
-  const sceneEmpty = useDesignStore((s) => s.pieces.length === 0);
+  const pieces = useDesignStore((s) => s.pieces);
+  const sceneEmpty = pieces.length === 0;
+  const inventory = useDesignStore((s) => s.inventory);
   const plateOpacity = useDesignStore((s) => s.plateOpacity);
   const setPlateOpacity = useDesignStore((s) => s.setPlateOpacity);
+
+  const used = useMemo(() => {
+    const poles: Record<string, number> = {};
+    const plates: Record<string, number> = {};
+    const connectors: Record<string, number> = {};
+    for (const p of pieces) {
+      if (p.kind === 'pole') {
+        const k = poleKey(p.length, p.color);
+        poles[k] = (poles[k] ?? 0) + 1;
+      } else if (p.kind === 'plate') {
+        const k = plateKey(p.size, p.color);
+        plates[k] = (plates[k] ?? 0) + 1;
+      } else {
+        connectors[p.typeId] = (connectors[p.typeId] ?? 0) + 1;
+      }
+    }
+    return { poles, plates, connectors };
+  }, [pieces]);
+
+  const remaining = (owned: number | undefined, usedCount: number): number | null =>
+    owned == null ? null : owned - usedCount;
 
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
@@ -21,14 +45,17 @@ export function Palette() {
           {ALL_COLORS.flatMap((color: Color) =>
             ([1, 0.5] as PoleLength[]).map((length) => {
               const active = mode.kind === 'pole' && mode.length === length && mode.color === color;
-              const label = `${color === 'blue' ? 'Blue' : 'Yellow'} · ${length === 1 ? '1L' : '0.5L'}`;
+              const label = length === 1 ? 'Full' : 'Half';
+              const left = remaining(inventory.poles[poleKey(length, color)], used.poles[poleKey(length, color)] ?? 0);
+              const dimmed = left != null && left <= 0;
               return (
                 <button
                   key={`${length}-${color}`}
                   onClick={() => setMode(active ? { kind: 'idle' } : { kind: 'pole', length, color })}
-                  style={paletteSwatchBtn(color, active)}
+                  style={paletteSwatchBtn(color, active, dimmed)}
                 >
                   {label}
+                  {left != null && <span style={remainingBadge(left <= 0)}>{left}</span>}
                 </button>
               );
             }),
@@ -42,14 +69,17 @@ export function Palette() {
           {ALL_COLORS.flatMap((color: Color) =>
             ALL_PLATE_SIZES.map((size: PlateSize) => {
               const active = mode.kind === 'plate' && mode.size === size && mode.color === color;
-              const label = `${color === 'blue' ? 'Blue' : 'Yellow'} · ${size}`;
+              const label = size === '1x1' ? 'Full' : 'Half';
+              const left = remaining(inventory.plates[plateKey(size, color)], used.plates[plateKey(size, color)] ?? 0);
+              const dimmed = left != null && left <= 0;
               return (
                 <button
                   key={`plate-${size}-${color}`}
                   onClick={() => setMode(active ? { kind: 'idle' } : { kind: 'plate', size, color })}
-                  style={paletteSwatchBtn(color, active)}
+                  style={paletteSwatchBtn(color, active, dimmed)}
                 >
                   {label}
+                  {left != null && <span style={remainingBadge(left <= 0)}>{left}</span>}
                 </button>
               );
             }),
@@ -85,6 +115,8 @@ export function Palette() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
           {connectorTypes.map((t) => {
             const active = mode.kind === 'connector' && mode.typeId === t.id;
+            const left = remaining(inventory.connectors[t.id], used.connectors[t.id] ?? 0);
+            const dimmed = left != null && left <= 0;
             return (
               <button
                 key={t.id}
@@ -96,10 +128,11 @@ export function Palette() {
                     setMode(active ? { kind: 'idle' } : { kind: 'connector', typeId: t.id });
                   }
                 }}
-                style={connectorBtn(active)}
+                style={connectorBtn(active, dimmed)}
                 title={`Sockets: ${t.sockets.join(', ')}`}
               >
                 {t.label}
+                {left != null && <span style={remainingBadge(left <= 0)}>{left}</span>}
               </button>
             );
           })}

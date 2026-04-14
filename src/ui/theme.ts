@@ -52,7 +52,7 @@ export const inputStyle: CSSProperties = {
   fontSize: 12,
 };
 
-export function connectorBtn(active: boolean, accent = '#6b9fff'): CSSProperties {
+export function connectorBtn(active: boolean, dimmed = false, accent = '#6b9fff'): CSSProperties {
   return {
     background: active ? accent : '#ffffff',
     color: active ? '#111' : '#3f3f46',
@@ -62,10 +62,12 @@ export function connectorBtn(active: boolean, accent = '#6b9fff'): CSSProperties
     cursor: 'pointer',
     fontSize: 12,
     textAlign: 'center',
+    position: 'relative',
+    opacity: dimmed ? 0.45 : 1,
   };
 }
 
-export function paletteSwatchBtn(color: Color, active: boolean): CSSProperties {
+export function paletteSwatchBtn(color: Color, active: boolean, dimmed = false): CSSProperties {
   return {
     background: COLOR_HEX[color],
     color: COLOR_FG[color],
@@ -76,6 +78,31 @@ export function paletteSwatchBtn(color: Color, active: boolean): CSSProperties {
     cursor: 'pointer',
     fontSize: 12,
     textAlign: 'center',
+    position: 'relative',
+    opacity: dimmed ? 0.45 : 1,
+  };
+}
+
+export function remainingBadge(over: boolean): CSSProperties {
+  return {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    minWidth: 18,
+    height: 18,
+    padding: '0 5px',
+    borderRadius: 9,
+    background: over ? '#dc2626' : '#ffffff',
+    color: over ? '#ffffff' : '#27272a',
+    border: `1px solid ${over ? '#dc2626' : '#d4d4d8'}`,
+    fontSize: 10,
+    fontWeight: 600,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
+    pointerEvents: 'none',
+    boxSizing: 'border-box',
   };
 }
 
