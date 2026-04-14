@@ -111,7 +111,7 @@ export function Palette() {
         <br />• Pick a pole → click a green socket on a connector.
         <br />• Pick a connector → click a green dot at a pole's free end.
         <br />• Pick a plate → ghosts appear on every valid pole rectangle; click one.
-        <br />• Click a piece to select; <kbd style={kbd}>Delete</kbd> to remove.
+        <br />• Click a piece to select; <kbd style={kbd}>⌘</kbd>/<kbd style={kbd}>Ctrl</kbd>+click to add to selection; <kbd style={kbd}>Delete</kbd> removes all selected.
         <br />• Select a connector, press <kbd style={kbd}>R</kbd> to rotate it
         (<kbd style={kbd}>Shift+R</kbd> reverses). Only rotations that keep existing connections valid are chosen.
       </div>

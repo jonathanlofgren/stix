@@ -16,37 +16,38 @@ export function Viewport() {
   const pieces = useDesignStore((s) => s.pieces);
   const mode = useDesignStore((s) => s.mode);
   const placeAtSocket = useDesignStore((s) => s.placeAtSocket);
-  const deletePiece = useDesignStore((s) => s.deletePiece);
+  const deletePieces = useDesignStore((s) => s.deletePieces);
   const rotateConnector = useDesignStore((s) => s.rotateConnector);
   const setMode = useDesignStore((s) => s.setMode);
-  const selected = useDesignStore((s) => s.selectedId);
+  const selectedIds = useDesignStore((s) => s.selectedIds);
   const setSelected = useDesignStore((s) => s.setSelected);
+  const clearSelection = useDesignStore((s) => s.clearSelection);
   const placePlate = useDesignStore((s) => s.placePlate);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) {
         e.preventDefault();
-        deletePiece(selected);
-        setSelected(null);
+        deletePieces([...selectedIds]);
         return;
       }
       if (e.key === 'Escape') {
-        if (selected) setSelected(null);
+        if (selectedIds.size > 0) clearSelection();
         else setMode({ kind: 'idle' });
         return;
       }
-      if ((e.key === 'r' || e.key === 'R') && selected) {
-        const selectedPiece = pieces.find((p) => p.id === selected);
+      if ((e.key === 'r' || e.key === 'R') && selectedIds.size === 1) {
+        const [only] = selectedIds;
+        const selectedPiece = pieces.find((p) => p.id === only);
         if (selectedPiece?.kind === 'connector') {
           e.preventDefault();
-          rotateConnector(selected, e.shiftKey ? -1 : 1);
+          rotateConnector(only, e.shiftKey ? -1 : 1);
         }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selected, deletePiece, rotateConnector, pieces, setMode, setSelected]);
+  }, [selectedIds, deletePieces, rotateConnector, pieces, setMode, clearSelection]);
 
   const sockets = useMemo(
     () => computeOpenSockets(pieces, DEFAULT_CONNECTORS),
@@ -86,13 +87,14 @@ export function Viewport() {
       <OrbitControls makeDefault />
 
       {pieces.map((p) => {
+        const sel = selectedIds.has(p.id);
         if (p.kind === 'connector') {
-          return <ConnectorMesh key={p.id} piece={p} selected={selected === p.id} onSelect={setSelected} />;
+          return <ConnectorMesh key={p.id} piece={p} selected={sel} onSelect={setSelected} />;
         }
         if (p.kind === 'pole') {
-          return <PoleMesh key={p.id} piece={p} selected={selected === p.id} onSelect={setSelected} />;
+          return <PoleMesh key={p.id} piece={p} selected={sel} onSelect={setSelected} />;
         }
-        return <PlateMesh key={p.id} piece={p} selected={selected === p.id} onSelect={setSelected} />;
+        return <PlateMesh key={p.id} piece={p} selected={sel} onSelect={setSelected} />;
       })}
 
       {mode.kind === 'plate' && candidates.map((c) => (
@@ -115,7 +117,7 @@ export function Viewport() {
               const newId = placeAtSocket(target);
               if (newId) {
                 const placed = useDesignStore.getState().pieces.find((p) => p.id === newId);
-                if (placed?.kind === 'connector') setSelected(newId);
+                if (placed?.kind === 'connector') setSelected(newId, { additive: false });
               }
             }}
           />

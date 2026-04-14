@@ -9,7 +9,7 @@ import { jointGeometry, stubGeometry } from './geometries';
 type Props = {
   piece: ConnectorPiece;
   selected: boolean;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, opts?: { additive?: boolean }) => void;
 };
 
 function stubTransform(dir: Direction): {
@@ -39,7 +39,10 @@ export function ConnectorMesh({ piece, selected, onSelect }: Props) {
       position={piece.position}
       onPointerOver={(e) => { e.stopPropagation(); setHover(true); }}
       onPointerOut={() => setHover(false)}
-      onClick={(e) => { e.stopPropagation(); onSelect(piece.id); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(piece.id, { additive: e.metaKey || e.ctrlKey });
+      }}
     >
       <mesh geometry={jointGeometry}>
         <meshStandardMaterial color={color} roughness={0.6} />

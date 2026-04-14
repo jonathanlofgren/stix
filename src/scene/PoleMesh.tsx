@@ -8,7 +8,7 @@ import { poleGeometry } from './geometries';
 type Props = {
   piece: PolePiece;
   selected: boolean;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, opts?: { additive?: boolean }) => void;
 };
 
 export function PoleMesh({ piece, selected, onSelect }: Props) {
@@ -39,7 +39,10 @@ export function PoleMesh({ piece, selected, onSelect }: Props) {
       geometry={poleGeometry(piece.length)}
       onPointerOver={(e) => { e.stopPropagation(); setHover(true); }}
       onPointerOut={() => setHover(false)}
-      onClick={(e) => { e.stopPropagation(); onSelect(piece.id); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(piece.id, { additive: e.metaKey || e.ctrlKey });
+      }}
     >
       <meshStandardMaterial color={color} roughness={0.3} />
     </mesh>

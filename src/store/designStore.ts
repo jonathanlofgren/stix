@@ -33,19 +33,21 @@ type State = {
   pieces: Piece[];
   inventory: Inventory;
   mode: PlacementMode;
-  selectedId: string | null;
+  selectedIds: Set<string>;
   plateOpacity: number;
   undoStack: Snapshot[];
   redoStack: Snapshot[];
 
   // Actions
   setMode: (m: PlacementMode) => void;
-  setSelected: (id: string | null) => void;
+  setSelected: (id: string | null, opts?: { additive?: boolean }) => void;
+  clearSelection: () => void;
   placeAtSocket: (target: OpenSocket) => string | undefined;
   placeStartingConnector: (typeId: string) => string | undefined;
   placePlate: (candidate: PlateCandidate, size: PlateSize, color: Color) => string | undefined;
   rotateConnector: (id: string, delta: number) => boolean;
   deletePiece: (id: string) => void;
+  deletePieces: (ids: string[]) => void;
   resetDesign: () => void;
   setInventoryConnector: (typeId: string, n: number | null) => void;
   setInventoryPole: (length: PoleLength, color: Color, n: number | null) => void;
@@ -118,13 +120,23 @@ export const useDesignStore = create<State>((set, get) => ({
   pieces: loadAutosave(),
   inventory: loadInventory(),
   mode: { kind: 'idle' },
-  selectedId: null,
+  selectedIds: new Set<string>(),
   plateOpacity: loadPlateOpacity(),
   undoStack: [],
   redoStack: [],
 
-  setMode: (mode) => set(mode.kind === 'idle' ? { mode } : { mode, selectedId: null }),
-  setSelected: (id) => set({ selectedId: id }),
+  setMode: (mode) => set(mode.kind === 'idle' ? { mode } : { mode, selectedIds: new Set() }),
+  setSelected: (id, opts) => set((s) => {
+    if (id == null) return { selectedIds: new Set() };
+    if (opts?.additive) {
+      const next = new Set(s.selectedIds);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return { selectedIds: next };
+    }
+    return { selectedIds: new Set([id]) };
+  }),
+  clearSelection: () => set({ selectedIds: new Set() }),
 
   connectorEffectiveSockets: (piece) => effectiveSockets(piece, DEFAULT_CONNECTORS),
   connectorWorldPosition: (id) => connectorWorldPosition(get().pieces, id),
@@ -275,18 +287,22 @@ export const useDesignStore = create<State>((set, get) => ({
     return false;
   },
 
-  deletePiece: (id) => {
+  deletePiece: (id) => get().deletePieces([id]),
+
+  deletePieces: (ids) => {
+    if (ids.length === 0) return;
     const { pieces } = get();
+    const toDelete = new Set(ids);
     const snap = snapshot(pieces);
     const newPieces: Piece[] = [];
     for (const p of pieces) {
-      if (p.id === id) continue;
+      if (toDelete.has(p.id)) continue;
       if (p.kind !== 'pole') {
         newPieces.push(p);
         continue;
       }
-      const fromGone = p.from.pieceId === id;
-      const toGone = p.to?.pieceId === id;
+      const fromGone = toDelete.has(p.from.pieceId);
+      const toGone = p.to ? toDelete.has(p.to.pieceId) : false;
       if (fromGone && toGone) continue; // both anchors gone
       if (fromGone) {
         // Reroot the pole to its `to` anchor, dropping the deleted side.
@@ -308,7 +324,12 @@ export const useDesignStore = create<State>((set, get) => ({
       newPieces.push(p);
     }
     const validated = validatePlates(newPieces);
-    set((s) => ({ pieces: validated, undoStack: [...s.undoStack, snap], redoStack: [] }));
+    set((s) => ({
+      pieces: validated,
+      selectedIds: new Set([...s.selectedIds].filter((x) => !toDelete.has(x))),
+      undoStack: [...s.undoStack, snap],
+      redoStack: [],
+    }));
   },
 
   resetDesign: () => {

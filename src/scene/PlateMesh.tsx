@@ -7,7 +7,7 @@ import { HOVER_PLATE, PLATE_COLOR, PLATE_THICKNESS, SELECTED_COLOR } from './con
 type Props = {
   piece: PlatePiece;
   selected: boolean;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, opts?: { additive?: boolean }) => void;
 };
 
 export function plateBoxDims(
@@ -48,7 +48,10 @@ export function PlateMesh({ piece, selected, onSelect }: Props) {
       geometry={geometry}
       onPointerOver={(e) => { e.stopPropagation(); setHover(true); }}
       onPointerOut={() => setHover(false)}
-      onClick={(e) => { e.stopPropagation(); onSelect(piece.id); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(piece.id, { additive: e.metaKey || e.ctrlKey });
+      }}
     >
       <meshStandardMaterial
         color={color}
