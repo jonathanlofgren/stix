@@ -14,13 +14,13 @@ export function BomPanel() {
   );
 
   if (rows.length === 0) {
-    return <div style={{ padding: 12, color: '#71717a', fontSize: 12 }}>No pieces yet.</div>;
+    return <div style={{ padding: 12, color: '#71717a', fontSize: 14 }}>No pieces yet.</div>;
   }
 
   return (
     <div style={{ padding: 12 }}>
       <h3 style={sectionHeader}>Bill of materials</h3>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
         <thead>
           <tr style={{ color: '#71717a', borderBottom: '1px solid #e4e4e7' }}>
             <th style={{ textAlign: 'left', padding: '4px 2px' }}>Piece</th>

@@ -34,15 +34,15 @@ export function InventoryModal({ onClose }: Props) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: '#ffffff', padding: 20, borderRadius: 8, minWidth: 420, maxHeight: '80vh',
+          background: '#ffffff', padding: 20, borderRadius: 8, minWidth: 460, maxHeight: '80vh',
           overflow: 'auto', border: '1px solid #e4e4e7', boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h2 style={{ margin: 0, fontSize: 16, color: '#18181b' }}>Inventory</h2>
-          <button onClick={onClose} style={{ background: 'transparent', color: '#71717a', border: 'none', cursor: 'pointer', fontSize: 20 }}>×</button>
+          <h2 style={{ margin: 0, fontSize: 18, color: '#18181b' }}>Inventory</h2>
+          <button onClick={onClose} style={{ background: 'transparent', color: '#71717a', border: 'none', cursor: 'pointer', fontSize: 24 }}>×</button>
         </div>
-        <p style={{ color: '#71717a', fontSize: 12, marginTop: 0 }}>
+        <p style={{ color: '#71717a', fontSize: 14, marginTop: 0 }}>
           How many of each piece do you own? Leave blank for unlimited. Warnings show when a design exceeds inventory.
         </p>
         <div style={{ marginBottom: 12, display: 'flex', gap: 6 }}>
@@ -53,7 +53,7 @@ export function InventoryModal({ onClose }: Props) {
             style={{
               background: '#ffffff', color: '#3f3f46',
               border: '1px solid #d4d4d8', borderRadius: 4,
-              padding: '4px 10px', fontSize: 12, cursor: 'pointer',
+              padding: '6px 12px', fontSize: 14, cursor: 'pointer',
             }}
           >
             Reset to default
@@ -65,7 +65,7 @@ export function InventoryModal({ onClose }: Props) {
             style={{
               background: '#ffffff', color: '#3f3f46',
               border: '1px solid #d4d4d8', borderRadius: 4,
-              padding: '4px 10px', fontSize: 12, cursor: 'pointer',
+              padding: '6px 12px', fontSize: 14, cursor: 'pointer',
             }}
           >
             Unlimited (clear all)
@@ -79,7 +79,7 @@ export function InventoryModal({ onClose }: Props) {
               const v = inventory.poles[poleKey(length, color)];
               return (
                 <Fragment key={`${length}-${color}`}>
-                  <label style={{ fontSize: 12 }}>
+                  <label style={{ fontSize: 14 }}>
                     <span style={swatch(COLOR_HEX[color])} />
                     {length === 1 ? 'Full' : 'Half'} pole
                   </label>
@@ -103,7 +103,7 @@ export function InventoryModal({ onClose }: Props) {
               const v = inventory.plates[plateKey(size, color)];
               return (
                 <Fragment key={`plate-${size}-${color}`}>
-                  <label style={{ fontSize: 12 }}>
+                  <label style={{ fontSize: 14 }}>
                     <span style={swatch(COLOR_HEX[color])} />
                     {size === '1x1' ? 'Full' : 'Half'} plate
                   </label>
@@ -126,7 +126,7 @@ export function InventoryModal({ onClose }: Props) {
             const v = inventory.connectors[t.id];
             return (
               <Fragment key={t.id}>
-                <label style={{ fontSize: 12 }}>
+                <label style={{ fontSize: 14 }}>
                   <span style={swatch(CONNECTOR_SWATCH)} />
                   {t.label}
                 </label>

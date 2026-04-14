@@ -12,13 +12,13 @@ export default function App() {
 
   return (
     <div style={{ display: 'grid', gridTemplateRows: '1fr auto', height: '100%', width: '100%' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px', minHeight: 0, minWidth: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', minHeight: 0, minWidth: 0 }}>
         <div style={{ position: 'relative', minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
           <Viewport />
           <div style={{
             position: 'absolute', top: 10, left: 10,
             background: 'rgba(255,255,255,0.85)', padding: '6px 10px',
-            borderRadius: 4, fontSize: 12, color: '#52525b',
+            borderRadius: 4, fontSize: 14, color: '#52525b',
             pointerEvents: 'none',
             boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
           }}>
@@ -29,7 +29,7 @@ export default function App() {
               position: 'absolute', inset: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               pointerEvents: 'none',
-              color: '#71717a', fontSize: 14, textAlign: 'center',
+              color: '#71717a', fontSize: 16, textAlign: 'center',
               padding: 20,
             }}>
               <span>Pick a connector from the right to start →</span>

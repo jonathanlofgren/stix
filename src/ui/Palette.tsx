@@ -85,7 +85,7 @@ export function Palette() {
             }),
           )}
         </div>
-        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#52525b' }}>
+        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#52525b' }}>
           <span>See-through</span>
           <button
             role="switch"
@@ -139,7 +139,7 @@ export function Palette() {
         </div>
       </div>
 
-      <div style={{ fontSize: 11, color: '#71717a', lineHeight: 1.5 }}>
+      <div style={{ fontSize: 13, color: '#71717a', lineHeight: 1.5 }}>
         <strong style={{ color: '#3f3f46' }}>How to build:</strong>
         <br />• Pick a pole → click a green socket on a connector.
         <br />• Pick a connector → click a green dot at a pole's free end.
