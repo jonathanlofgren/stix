@@ -9,7 +9,7 @@ export const DEFAULT_INVENTORY: Inventory = {
   },
   plates: {
     '1x1-blue': 3,
-    '1x0.5-blue': 1,
+    '1x0.5-blue': 2,
     '1x1-yellow': 5,
     '1x0.5-yellow': 1,
   },
