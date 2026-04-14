@@ -1,24 +1,26 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid } from '@react-three/drei';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useDesignStore } from '../store/designStore';
+import type { OpenSocket } from '../store/designStore';
 import { ConnectorMesh } from './ConnectorMesh';
 import { PoleMesh } from './PoleMesh';
 import { PlateMesh } from './PlateMesh';
 import { PlateGhost } from './PlateGhost';
 import { SocketHandle } from './SocketHandle';
+import { computeOpenSockets } from '../model/connections';
+import { enumerateCandidates } from '../model/plates';
+import { DEFAULT_CONNECTORS } from '../catalog/defaultConnectors';
 
 export function Viewport() {
   const pieces = useDesignStore((s) => s.pieces);
   const mode = useDesignStore((s) => s.mode);
   const placeAtSocket = useDesignStore((s) => s.placeAtSocket);
-  const openSockets = useDesignStore((s) => s.openSockets);
   const deletePiece = useDesignStore((s) => s.deletePiece);
   const rotateConnector = useDesignStore((s) => s.rotateConnector);
   const setMode = useDesignStore((s) => s.setMode);
   const selected = useDesignStore((s) => s.selectedId);
   const setSelected = useDesignStore((s) => s.setSelected);
-  const candidatePlates = useDesignStore((s) => s.candidatePlates);
   const placePlate = useDesignStore((s) => s.placePlate);
 
   useEffect(() => {
@@ -46,10 +48,17 @@ export function Viewport() {
     return () => window.removeEventListener('keydown', onKey);
   }, [selected, deletePiece, rotateConnector, pieces, setMode, setSelected]);
 
-  const sockets = openSockets();
+  const sockets = useMemo(
+    () => computeOpenSockets(pieces, DEFAULT_CONNECTORS),
+    [pieces],
+  );
 
-  const socketEnabled = (idx: number): boolean => {
-    const s = sockets[idx];
+  const candidates = useMemo(
+    () => (mode.kind === 'plate' ? enumerateCandidates(pieces, mode.size) : []),
+    [pieces, mode],
+  );
+
+  const socketEnabled = (s: OpenSocket): boolean => {
     if (mode.kind === 'idle') return false;
     if (s.kind === 'connector-socket' && mode.kind === 'pole') return true;
     if (s.kind === 'pole-end' && mode.kind === 'connector') return true;
@@ -86,7 +95,7 @@ export function Viewport() {
         return <PlateMesh key={p.id} piece={p} selected={selected === p.id} onSelect={setSelected} />;
       })}
 
-      {mode.kind === 'plate' && candidatePlates(mode.size).map((c) => (
+      {mode.kind === 'plate' && candidates.map((c) => (
         <PlateGhost
           key={`${c.minCorner.join(',')}-${c.maxCorner.join(',')}`}
           candidate={c}
@@ -95,13 +104,13 @@ export function Viewport() {
         />
       ))}
 
-      {sockets.map((s, idx) => {
+      {sockets.map((s) => {
         const key = s.kind === 'connector-socket' ? `${s.pieceId}-${s.socket}` : `pole-${s.poleId}`;
         return (
           <SocketHandle
             key={key}
             socket={s}
-            enabled={socketEnabled(idx)}
+            enabled={socketEnabled(s)}
             onClick={(target) => {
               const newId = placeAtSocket(target);
               if (newId) {

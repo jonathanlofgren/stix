@@ -1,12 +1,17 @@
+import { useMemo } from 'react';
 import { useDesignStore } from '../store/designStore';
 import { computeBom } from '../model/bom';
+import { DEFAULT_CONNECTORS } from '../catalog/defaultConnectors';
+import { COLOR_HEX, CONNECTOR_SWATCH, sectionHeader, swatch } from './theme';
 
 export function BomPanel() {
   const pieces = useDesignStore((s) => s.pieces);
-  const connectorTypes = useDesignStore((s) => s.allConnectorTypes)();
   const inventory = useDesignStore((s) => s.inventory);
 
-  const rows = computeBom(pieces, connectorTypes, inventory);
+  const rows = useMemo(
+    () => computeBom(pieces, DEFAULT_CONNECTORS, inventory),
+    [pieces, inventory],
+  );
 
   if (rows.length === 0) {
     return <div style={{ padding: 12, color: '#71717a', fontSize: 12 }}>No pieces yet.</div>;
@@ -14,9 +19,7 @@ export function BomPanel() {
 
   return (
     <div style={{ padding: 12 }}>
-      <h3 style={{ margin: '0 0 8px', fontSize: 12, letterSpacing: 0.5, color: '#71717a', textTransform: 'uppercase' }}>
-        Bill of materials
-      </h3>
+      <h3 style={sectionHeader}>Bill of materials</h3>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
         <thead>
           <tr style={{ color: '#71717a', borderBottom: '1px solid #e4e4e7' }}>
@@ -34,21 +37,11 @@ export function BomPanel() {
                 : r.kind === 'plate'
                   ? `${r.color === 'blue' ? 'Blue' : 'Yellow'} · ${r.size} plate`
                   : r.label;
-            const swatchColor =
-              r.kind === 'connector'
-                ? '#18181b'
-                : r.color === 'blue'
-                  ? '#3b82f6'
-                  : '#facc15';
+            const swatchColor = r.kind === 'connector' ? CONNECTOR_SWATCH : COLOR_HEX[r.color];
             return (
               <tr key={idx} style={{ background: over ? '#fee2e2' : 'transparent', color: over ? '#b91c1c' : '#27272a' }}>
                 <td style={{ padding: '3px 2px' }}>
-                  <span style={{
-                    display: 'inline-block',
-                    width: 10, height: 10, borderRadius: 2,
-                    background: swatchColor,
-                    marginRight: 6, verticalAlign: 'middle',
-                  }} />
+                  <span style={swatch(swatchColor)} />
                   {label}
                 </td>
                 <td style={{ textAlign: 'right', padding: '3px 2px' }}>{r.count}</td>

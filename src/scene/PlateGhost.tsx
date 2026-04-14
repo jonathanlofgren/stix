@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import * as THREE from 'three';
 import type { Color } from '../model/types';
 import type { PlateCandidate } from '../store/designStore';
+import { PLATE_COLOR } from './constants';
+import { plateBoxDims } from './PlateMesh';
 
 type Props = {
   candidate: PlateCandidate;
@@ -8,43 +11,22 @@ type Props = {
   onClick: (c: PlateCandidate) => void;
 };
 
-const COLOR_HEX: Record<string, string> = {
-  blue: '#3b82f6',
-  yellow: '#facc15',
-};
-
-const THICKNESS = 0.04;
-
 export function PlateGhost({ candidate, color, onClick }: Props) {
   const [hover, setHover] = useState(false);
-
-  const { minCorner, maxCorner } = candidate;
-  const size: [number, number, number] = [
-    maxCorner[0] - minCorner[0],
-    maxCorner[1] - minCorner[1],
-    maxCorner[2] - minCorner[2],
-  ];
-  const center: [number, number, number] = [
-    (minCorner[0] + maxCorner[0]) / 2,
-    (minCorner[1] + maxCorner[1]) / 2,
-    (minCorner[2] + maxCorner[2]) / 2,
-  ];
-  const box: [number, number, number] = [
-    size[0] === 0 ? THICKNESS : size[0],
-    size[1] === 0 ? THICKNESS : size[1],
-    size[2] === 0 ? THICKNESS : size[2],
-  ];
+  const { center, box } = plateBoxDims(candidate.minCorner, candidate.maxCorner);
+  const geometry = useMemo(() => new THREE.BoxGeometry(box[0], box[1], box[2]), [box[0], box[1], box[2]]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
     <mesh
       position={center}
+      geometry={geometry}
       onPointerOver={(e) => { e.stopPropagation(); setHover(true); }}
       onPointerOut={() => setHover(false)}
       onClick={(e) => { e.stopPropagation(); onClick(candidate); }}
     >
-      <boxGeometry args={box} />
       <meshStandardMaterial
-        color={COLOR_HEX[color]}
+        color={PLATE_COLOR[color]}
         transparent
         opacity={hover ? 0.55 : 0.3}
         roughness={0.5}

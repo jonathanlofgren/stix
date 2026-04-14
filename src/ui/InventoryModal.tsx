@@ -2,11 +2,13 @@ import { Fragment } from 'react';
 import { useDesignStore } from '../store/designStore';
 import { ALL_COLORS, ALL_LENGTHS, ALL_PLATE_SIZES, plateKey, poleKey } from '../model/types';
 import type { Color, PlateSize, PoleLength } from '../model/types';
+import { DEFAULT_CONNECTORS } from '../catalog/defaultConnectors';
+import { COLOR_HEX, CONNECTOR_SWATCH, inputStyle, sectionHeader, swatch } from './theme';
 
 type Props = { onClose: () => void };
 
 export function InventoryModal({ onClose }: Props) {
-  const connectorTypes = useDesignStore((s) => s.allConnectorTypes)();
+  const connectorTypes = DEFAULT_CONNECTORS;
   const inventory = useDesignStore((s) => s.inventory);
   const setInventoryConnector = useDesignStore((s) => s.setInventoryConnector);
   const setInventoryPole = useDesignStore((s) => s.setInventoryPole);
@@ -57,7 +59,7 @@ export function InventoryModal({ onClose }: Props) {
           </button>
         </div>
 
-        <h3 style={{ fontSize: 12, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Poles</h3>
+        <h3 style={{ ...sectionHeader, marginBottom: 6 }}>Poles</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '6px 10px', marginBottom: 16 }}>
           {ALL_LENGTHS.flatMap((length: PoleLength) =>
             ALL_COLORS.map((color: Color) => {
@@ -65,11 +67,7 @@ export function InventoryModal({ onClose }: Props) {
               return (
                 <Fragment key={`${length}-${color}`}>
                   <label style={{ fontSize: 12 }}>
-                    <span style={{
-                      display: 'inline-block', width: 10, height: 10, borderRadius: 2,
-                      background: color === 'blue' ? '#3b82f6' : '#facc15',
-                      marginRight: 6, verticalAlign: 'middle',
-                    }} />
+                    <span style={swatch(COLOR_HEX[color])} />
                     {length === 1 ? 'Full' : 'Half'} pole · {color}
                   </label>
                   <input
@@ -85,7 +83,7 @@ export function InventoryModal({ onClose }: Props) {
           )}
         </div>
 
-        <h3 style={{ fontSize: 12, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Plates</h3>
+        <h3 style={{ ...sectionHeader, marginBottom: 6 }}>Plates</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '6px 10px', marginBottom: 16 }}>
           {ALL_COLORS.flatMap((color: Color) =>
             ALL_PLATE_SIZES.map((size: PlateSize) => {
@@ -93,11 +91,7 @@ export function InventoryModal({ onClose }: Props) {
               return (
                 <Fragment key={`plate-${size}-${color}`}>
                   <label style={{ fontSize: 12 }}>
-                    <span style={{
-                      display: 'inline-block', width: 10, height: 10, borderRadius: 2,
-                      background: color === 'blue' ? '#3b82f6' : '#facc15',
-                      marginRight: 6, verticalAlign: 'middle',
-                    }} />
+                    <span style={swatch(COLOR_HEX[color])} />
                     {size} plate · {color}
                   </label>
                   <input
@@ -113,18 +107,14 @@ export function InventoryModal({ onClose }: Props) {
           )}
         </div>
 
-        <h3 style={{ fontSize: 12, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Connectors</h3>
+        <h3 style={{ ...sectionHeader, marginBottom: 6 }}>Connectors</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '6px 10px' }}>
           {connectorTypes.map((t) => {
             const v = inventory.connectors[t.id];
             return (
               <Fragment key={t.id}>
                 <label style={{ fontSize: 12 }}>
-                  <span style={{
-                    display: 'inline-block', width: 10, height: 10, borderRadius: 2,
-                    background: '#18181b',
-                    marginRight: 6, verticalAlign: 'middle',
-                  }} />
+                  <span style={swatch(CONNECTOR_SWATCH)} />
                   {t.label}
                 </label>
                 <input
@@ -142,8 +132,3 @@ export function InventoryModal({ onClose }: Props) {
     </div>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  width: 70, padding: '4px 6px', background: '#ffffff', color: '#1f2937',
-  border: '1px solid #d4d4d8', borderRadius: 4, fontSize: 12,
-};

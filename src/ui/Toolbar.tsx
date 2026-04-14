@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { useDesignStore } from '../store/designStore';
-import type { Design } from '../model/types';
+import { parseDesign } from '../model/design';
+import { toolbarBtn } from './theme';
 
 type Props = {
   onOpenInventory: () => void;
@@ -35,11 +36,10 @@ export function Toolbar({ onOpenInventory }: Props) {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const d = JSON.parse(String(e.target?.result)) as Design;
-        if (!Array.isArray(d.pieces)) throw new Error('Invalid design file');
-        importDesign(d);
+        const raw = JSON.parse(String(e.target?.result));
+        importDesign(parseDesign(raw));
       } catch (err) {
-        alert(`Failed to load: ${String(err)}`);
+        alert(`Failed to load: ${err instanceof Error ? err.message : String(err)}`);
       }
     };
     reader.readAsText(file);
@@ -72,13 +72,3 @@ export function Toolbar({ onOpenInventory }: Props) {
     </div>
   );
 }
-
-const toolbarBtn: React.CSSProperties = {
-  background: '#f4f4f5',
-  color: '#27272a',
-  border: '1px solid #d4d4d8',
-  padding: '4px 10px',
-  borderRadius: 4,
-  cursor: 'pointer',
-  fontSize: 12,
-};

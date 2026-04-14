@@ -1,16 +1,16 @@
 import type { ConnectorPiece, Direction } from '../model/types';
 import { useDesignStore } from '../store/designStore';
 import { useState } from 'react';
+import {
+  CONNECTOR_COLOR, HOVER_CONNECTOR, SELECTED_COLOR, STUB_LENGTH,
+} from './constants';
+import { jointGeometry, stubGeometry } from './geometries';
 
 type Props = {
   piece: ConnectorPiece;
   selected: boolean;
   onSelect: (id: string) => void;
 };
-
-const JOINT_RADIUS = 0.075;
-const STUB_RADIUS = 0.04;  // thinner than pole (0.06) so poles hide it
-const STUB_LENGTH = 0.14;
 
 function stubTransform(dir: Direction): {
   position: [number, number, number];
@@ -32,7 +32,7 @@ export function ConnectorMesh({ piece, selected, onSelect }: Props) {
   const [hover, setHover] = useState(false);
 
   const sockets = connectorEffectiveSockets(piece);
-  const color = selected ? '#ef4444' : hover ? '#3b82f6' : '#18181b';
+  const color = selected ? SELECTED_COLOR : hover ? HOVER_CONNECTOR : CONNECTOR_COLOR;
 
   return (
     <group
@@ -41,15 +41,13 @@ export function ConnectorMesh({ piece, selected, onSelect }: Props) {
       onPointerOut={() => setHover(false)}
       onClick={(e) => { e.stopPropagation(); onSelect(piece.id); }}
     >
-      <mesh>
-        <sphereGeometry args={[JOINT_RADIUS, 16, 12]} />
+      <mesh geometry={jointGeometry}>
         <meshStandardMaterial color={color} roughness={0.6} />
       </mesh>
       {sockets.map((s) => {
         const t = stubTransform(s);
         return (
-          <mesh key={s} position={t.position} rotation={t.rotation}>
-            <cylinderGeometry args={[STUB_RADIUS, STUB_RADIUS, STUB_LENGTH, 12]} />
+          <mesh key={s} position={t.position} rotation={t.rotation} geometry={stubGeometry}>
             <meshStandardMaterial color={color} roughness={0.6} />
           </mesh>
         );

@@ -72,33 +72,4 @@ export function rotateSockets(sockets: Direction[], rot: RotationId): Direction[
   return sockets.map((s) => rotateDirection(rot, s));
 }
 
-export function rotationToEuler(rot: RotationId): [number, number, number] {
-  const m = ALL_ROTATIONS_MAT[rot];
-  const sy = Math.sqrt(m[0][0] * m[0][0] + m[1][0] * m[1][0]);
-  const singular = sy < 1e-6;
-  let x: number, y: number, z: number;
-  if (!singular) {
-    x = Math.atan2(m[2][1], m[2][2]);
-    y = Math.atan2(-m[2][0], sy);
-    z = Math.atan2(m[1][0], m[0][0]);
-  } else {
-    x = Math.atan2(-m[1][2], m[1][1]);
-    y = Math.atan2(-m[2][0], sy);
-    z = 0;
-  }
-  return [x, y, z];
-}
-
-// Find a rotation such that `requiredSocket` is among the rotated sockets.
-export function findRotationWithSocket(
-  baseSockets: Direction[],
-  requiredSocket: Direction,
-): RotationId | null {
-  for (let i = 0; i < ALL_ROTATIONS_MAT.length; i++) {
-    const rotated = rotateSockets(baseSockets, i);
-    if (rotated.includes(requiredSocket)) return i;
-  }
-  return null;
-}
-
 export const NUM_ROTATIONS = ALL_ROTATIONS_MAT.length;

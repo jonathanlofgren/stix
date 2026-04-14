@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import type { OpenSocket } from '../store/designStore';
+import { SOCKET_DISABLED, SOCKET_ENABLED, SOCKET_HOVER } from './constants';
+import { socketGeometry } from './geometries';
 
 type Props = {
   socket: OpenSocket;
@@ -9,11 +11,12 @@ type Props = {
 
 export function SocketHandle({ socket, enabled, onClick }: Props) {
   const [hover, setHover] = useState(false);
-  const color = !enabled ? '#666' : hover ? '#fde047' : '#22c55e';
+  const color = !enabled ? SOCKET_DISABLED : hover ? SOCKET_HOVER : SOCKET_ENABLED;
 
   return (
     <mesh
       position={socket.worldPos}
+      geometry={socketGeometry}
       onPointerOver={(e) => { e.stopPropagation(); setHover(true); }}
       onPointerOut={() => setHover(false)}
       onClick={(e) => {
@@ -21,8 +24,13 @@ export function SocketHandle({ socket, enabled, onClick }: Props) {
         if (enabled) onClick(socket);
       }}
     >
-      <sphereGeometry args={[0.08, 16, 12]} />
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={hover ? 0.6 : 0.3} transparent opacity={enabled ? 0.95 : 0.35} />
+      <meshStandardMaterial
+        color={color}
+        emissive={color}
+        emissiveIntensity={hover ? 0.6 : 0.3}
+        transparent
+        opacity={enabled ? 0.95 : 0.35}
+      />
     </mesh>
   );
 }
