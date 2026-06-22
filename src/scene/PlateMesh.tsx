@@ -2,12 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import type { PlatePiece } from '../model/types';
 import { useDesignStore } from '../store/designStore';
-import { HOVER_PLATE, PLATE_COLOR, PLATE_THICKNESS, SELECTED_COLOR } from './constants';
+import { Outlines } from '@react-three/drei';
+import {
+  buildMaterial, BUILD_OUTLINE_COLOR, BUILD_OUTLINE_THICKNESS,
+  HOVER_PLATE, PLATE_COLOR, PLATE_THICKNESS, SELECTED_COLOR,
+  type BuildAppearance,
+} from './constants';
 
 type Props = {
   piece: PlatePiece;
   selected: boolean;
   onSelect: (id: string, opts?: { additive?: boolean }) => void;
+  build?: BuildAppearance;
 };
 
 export function plateBoxDims(
@@ -32,7 +38,7 @@ export function plateBoxDims(
   return { center, box };
 }
 
-export function PlateMesh({ piece, selected, onSelect }: Props) {
+export function PlateMesh({ piece, selected, onSelect, build }: Props) {
   const plateOpacity = useDesignStore((s) => s.plateOpacity);
   const [hover, setHover] = useState(false);
 
@@ -40,25 +46,29 @@ export function PlateMesh({ piece, selected, onSelect }: Props) {
   const geometry = useMemo(() => new THREE.BoxGeometry(box[0], box[1], box[2]), [box[0], box[1], box[2]]);
   useEffect(() => () => geometry.dispose(), [geometry]);
 
-  const color = selected ? SELECTED_COLOR : hover ? HOVER_PLATE : PLATE_COLOR[piece.color];
+  const mat = build
+    ? buildMaterial(build, PLATE_COLOR[piece.color], plateOpacity)
+    : {
+        color: selected ? SELECTED_COLOR : hover ? HOVER_PLATE : PLATE_COLOR[piece.color],
+        transparent: true,
+        opacity: plateOpacity,
+      };
+  const interactive = !build;
 
   return (
     <mesh
       position={center}
       geometry={geometry}
-      onPointerOver={(e) => { e.stopPropagation(); setHover(true); }}
-      onPointerOut={() => setHover(false)}
-      onClick={(e) => {
+      raycast={build === 'ghost' ? () => null : undefined}
+      onPointerOver={interactive ? (e) => { e.stopPropagation(); setHover(true); } : undefined}
+      onPointerOut={interactive ? () => setHover(false) : undefined}
+      onClick={interactive ? (e) => {
         e.stopPropagation();
         onSelect(piece.id, { additive: e.metaKey || e.ctrlKey });
-      }}
+      } : undefined}
     >
-      <meshStandardMaterial
-        color={color}
-        roughness={0.4}
-        transparent
-        opacity={plateOpacity}
-      />
+      <meshStandardMaterial roughness={0.4} {...mat} />
+      {build === 'current' && <Outlines thickness={BUILD_OUTLINE_THICKNESS} color={BUILD_OUTLINE_COLOR} />}
     </mesh>
   );
 }

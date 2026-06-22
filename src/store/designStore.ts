@@ -12,6 +12,7 @@ import {
   findBestRotation, resolveConnections, type OpenSocket,
 } from '../model/connections';
 import { enumerateCandidates, validatePlates, type PlateCandidate } from '../model/plates';
+import { computeLayers } from '../model/buildPlan';
 
 const AUTOSAVE_KEY = 'project-play:design';
 const INVENTORY_KEY = 'project-play:inventory';
@@ -37,8 +38,14 @@ type State = {
   plateOpacity: number;
   undoStack: Snapshot[];
   redoStack: Snapshot[];
+  // Build mode: a read-only, bottom-up layer walkthrough for physical assembly.
+  buildActive: boolean;
+  buildLayer: number;
 
   // Actions
+  enterBuild: () => void;
+  exitBuild: () => void;
+  setBuildLayer: (n: number) => void;
   setMode: (m: PlacementMode) => void;
   setSelected: (id: string | null, opts?: { additive?: boolean }) => void;
   selectMany: (ids: string[]) => void;
@@ -126,6 +133,21 @@ export const useDesignStore = create<State>((set, get) => ({
   plateOpacity: loadPlateOpacity(),
   undoStack: [],
   redoStack: [],
+  buildActive: false,
+  buildLayer: 0,
+
+  enterBuild: () => set({
+    buildActive: true,
+    buildLayer: 0,
+    mode: { kind: 'idle' },
+    selectedIds: new Set(),
+  }),
+  exitBuild: () => set({ buildActive: false }),
+  setBuildLayer: (n) => set((s) => {
+    const count = computeLayers(s.pieces).length;
+    if (count === 0) return { buildLayer: 0 };
+    return { buildLayer: Math.max(0, Math.min(count - 1, n)) };
+  }),
 
   setMode: (mode) => set(mode.kind === 'idle' ? { mode } : { mode, selectedIds: new Set() }),
   setSelected: (id, opts) => set((s) => {

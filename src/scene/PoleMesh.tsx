@@ -2,16 +2,21 @@ import { useState } from 'react';
 import type { PolePiece } from '../model/types';
 import { useDesignStore } from '../store/designStore';
 import { addVec, directionVector, scaleVec } from '../model/geometry';
-import { HOVER_POLE, POLE_COLOR, SELECTED_COLOR } from './constants';
+import { Outlines } from '@react-three/drei';
+import {
+  buildMaterial, BUILD_OUTLINE_COLOR, BUILD_OUTLINE_THICKNESS,
+  HOVER_POLE, POLE_COLOR, SELECTED_COLOR, type BuildAppearance,
+} from './constants';
 import { poleGeometry } from './geometries';
 
 type Props = {
   piece: PolePiece;
   selected: boolean;
   onSelect: (id: string, opts?: { additive?: boolean }) => void;
+  build?: BuildAppearance;
 };
 
-export function PoleMesh({ piece, selected, onSelect }: Props) {
+export function PoleMesh({ piece, selected, onSelect, build }: Props) {
   const connectorWorldPosition = useDesignStore((s) => s.connectorWorldPosition);
   const [hover, setHover] = useState(false);
 
@@ -30,21 +35,26 @@ export function PoleMesh({ piece, selected, onSelect }: Props) {
   if (piece.from.socket === '+X' || piece.from.socket === '-X') rotation = [0, 0, Math.PI / 2];
   else if (piece.from.socket === '+Z' || piece.from.socket === '-Z') rotation = [Math.PI / 2, 0, 0];
 
-  const color = selected ? SELECTED_COLOR : hover ? HOVER_POLE : POLE_COLOR[piece.color];
+  const mat = build
+    ? buildMaterial(build, POLE_COLOR[piece.color])
+    : { color: selected ? SELECTED_COLOR : hover ? HOVER_POLE : POLE_COLOR[piece.color] };
+  const interactive = !build;
 
   return (
     <mesh
       position={midPos}
       rotation={rotation}
       geometry={poleGeometry(piece.length)}
-      onPointerOver={(e) => { e.stopPropagation(); setHover(true); }}
-      onPointerOut={() => setHover(false)}
-      onClick={(e) => {
+      raycast={build === 'ghost' ? () => null : undefined}
+      onPointerOver={interactive ? (e) => { e.stopPropagation(); setHover(true); } : undefined}
+      onPointerOut={interactive ? () => setHover(false) : undefined}
+      onClick={interactive ? (e) => {
         e.stopPropagation();
         onSelect(piece.id, { additive: e.metaKey || e.ctrlKey });
-      }}
+      } : undefined}
     >
-      <meshStandardMaterial color={color} roughness={0.3} />
+      <meshStandardMaterial roughness={0.3} {...mat} />
+      {build === 'current' && <Outlines thickness={BUILD_OUTLINE_THICKNESS} color={BUILD_OUTLINE_COLOR} />}
     </mesh>
   );
 }

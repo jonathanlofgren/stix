@@ -15,6 +15,10 @@ export function Toolbar({ onOpenInventory }: Props) {
   const redo = useDesignStore((s) => s.redo);
   const undoCount = useDesignStore((s) => s.undoStack.length);
   const redoCount = useDesignStore((s) => s.redoStack.length);
+  const buildActive = useDesignStore((s) => s.buildActive);
+  const enterBuild = useDesignStore((s) => s.enterBuild);
+  const exitBuild = useDesignStore((s) => s.exitBuild);
+  const hasPieces = useDesignStore((s) => s.pieces.length > 0);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -68,7 +72,20 @@ export function Toolbar({ onOpenInventory }: Props) {
       <button style={{ ...toolbarBtn, opacity: undoCount ? 1 : 0.4 }} onClick={undo} disabled={!undoCount}>Undo</button>
       <button style={{ ...toolbarBtn, opacity: redoCount ? 1 : 0.4 }} onClick={redo} disabled={!redoCount}>Redo</button>
       <div style={{ flex: 1 }} />
-      <button style={toolbarBtn} onClick={onOpenInventory}>Inventory</button>
+      <button
+        style={{
+          ...toolbarBtn,
+          opacity: hasPieces ? 1 : 0.4,
+          ...(buildActive
+            ? { background: '#22c55e', color: '#0f291a', borderColor: '#22c55e', fontWeight: 600 }
+            : {}),
+        }}
+        onClick={() => (buildActive ? exitBuild() : enterBuild())}
+        disabled={!hasPieces}
+      >
+        {buildActive ? 'Exit build' : 'Build'}
+      </button>
+      <button style={toolbarBtn} onClick={onOpenInventory} disabled={buildActive}>Inventory</button>
     </div>
   );
 }

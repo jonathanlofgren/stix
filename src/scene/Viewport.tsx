@@ -10,7 +10,9 @@ import { PlateGhost } from './PlateGhost';
 import { SocketHandle } from './SocketHandle';
 import { computeOpenSockets } from '../model/connections';
 import { enumerateCandidates } from '../model/plates';
+import { computeLayers } from '../model/buildPlan';
 import { DEFAULT_CONNECTORS } from '../catalog/defaultConnectors';
+import type { BuildAppearance } from './constants';
 
 export function Viewport() {
   const pieces = useDesignStore((s) => s.pieces);
@@ -23,8 +25,42 @@ export function Viewport() {
   const setSelected = useDesignStore((s) => s.setSelected);
   const clearSelection = useDesignStore((s) => s.clearSelection);
   const placePlate = useDesignStore((s) => s.placePlate);
+  const buildActive = useDesignStore((s) => s.buildActive);
+  const buildLayer = useDesignStore((s) => s.buildLayer);
+  const setBuildLayer = useDesignStore((s) => s.setBuildLayer);
+  const exitBuild = useDesignStore((s) => s.exitBuild);
+
+  // In build mode, map every piece id to its appearance for the current layer step.
+  const buildAppearance = useMemo(() => {
+    if (!buildActive) return null;
+    const layers = computeLayers(pieces);
+    const m = new Map<string, BuildAppearance>();
+    layers.forEach((layer, i) => {
+      const a: BuildAppearance = i < buildLayer ? 'built' : i === buildLayer ? 'current' : 'ghost';
+      for (const id of layer.pieceIds) m.set(id, a);
+    });
+    return m;
+  }, [buildActive, buildLayer, pieces]);
 
   useEffect(() => {
+    if (!buildActive) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        setBuildLayer(buildLayer + 1);
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setBuildLayer(buildLayer - 1);
+      } else if (e.key === 'Escape') {
+        exitBuild();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [buildActive, buildLayer, setBuildLayer, exitBuild]);
+
+  useEffect(() => {
+    if (buildActive) return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) {
         e.preventDefault();
@@ -47,7 +83,7 @@ export function Viewport() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedIds, deletePieces, rotateConnector, pieces, setMode, clearSelection]);
+  }, [buildActive, selectedIds, deletePieces, rotateConnector, pieces, setMode, clearSelection]);
 
   const sockets = useMemo(
     () => computeOpenSockets(pieces, DEFAULT_CONNECTORS),
@@ -88,16 +124,19 @@ export function Viewport() {
 
       {pieces.map((p) => {
         const sel = selectedIds.has(p.id);
+        const build = buildAppearance?.get(p.id);
+        // Hide layers not yet reached so they don't obscure the current one.
+        if (buildActive && build === 'ghost') return null;
         if (p.kind === 'connector') {
-          return <ConnectorMesh key={p.id} piece={p} selected={sel} onSelect={setSelected} />;
+          return <ConnectorMesh key={p.id} piece={p} selected={sel} onSelect={setSelected} build={build} />;
         }
         if (p.kind === 'pole') {
-          return <PoleMesh key={p.id} piece={p} selected={sel} onSelect={setSelected} />;
+          return <PoleMesh key={p.id} piece={p} selected={sel} onSelect={setSelected} build={build} />;
         }
-        return <PlateMesh key={p.id} piece={p} selected={sel} onSelect={setSelected} />;
+        return <PlateMesh key={p.id} piece={p} selected={sel} onSelect={setSelected} build={build} />;
       })}
 
-      {mode.kind === 'plate' && candidates.map((c) => (
+      {!buildActive && mode.kind === 'plate' && candidates.map((c) => (
         <PlateGhost
           key={`${c.minCorner.join(',')}-${c.maxCorner.join(',')}`}
           candidate={c}
@@ -106,7 +145,7 @@ export function Viewport() {
         />
       ))}
 
-      {sockets.map((s) => {
+      {!buildActive && sockets.map((s) => {
         const key = s.kind === 'connector-socket' ? `${s.pieceId}-${s.socket}` : `pole-${s.poleId}`;
         return (
           <SocketHandle

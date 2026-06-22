@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Viewport } from './scene/Viewport';
 import { Palette } from './ui/Palette';
 import { BomPanel } from './ui/BomPanel';
+import { BuildPanel } from './ui/BuildPanel';
 import { InventoryModal } from './ui/InventoryModal';
 import { Toolbar } from './ui/Toolbar';
 import { useDesignStore } from './store/designStore';
@@ -9,6 +10,7 @@ import { useDesignStore } from './store/designStore';
 export default function App() {
   const [showInventory, setShowInventory] = useState(false);
   const sceneEmpty = useDesignStore((s) => s.pieces.length === 0);
+  const buildActive = useDesignStore((s) => s.buildActive);
 
   return (
     <div style={{ display: 'grid', gridTemplateRows: '1fr auto', height: '100%', width: '100%' }}>
@@ -22,9 +24,9 @@ export default function App() {
             pointerEvents: 'none',
             boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
           }}>
-            Stix
+            {buildActive ? 'Stix · Build mode' : 'Stix'}
           </div>
-          {sceneEmpty && (
+          {sceneEmpty && !buildActive && (
             <div style={{
               position: 'absolute', inset: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -39,13 +41,19 @@ export default function App() {
         <div style={{
           borderLeft: '1px solid #e4e4e7',
           background: '#fafafa',
-          display: 'grid', gridTemplateRows: 'auto 1fr',
-          minHeight: 0, overflow: 'auto',
+          display: 'grid', gridTemplateRows: buildActive ? '1fr' : 'auto 1fr',
+          minHeight: 0, overflow: buildActive ? 'hidden' : 'auto',
         }}>
-          <Palette />
-          <div style={{ borderTop: '1px solid #e4e4e7', overflow: 'auto' }}>
-            <BomPanel />
-          </div>
+          {buildActive ? (
+            <BuildPanel />
+          ) : (
+            <>
+              <Palette />
+              <div style={{ borderTop: '1px solid #e4e4e7', overflow: 'auto' }}>
+                <BomPanel />
+              </div>
+            </>
+          )}
         </div>
       </div>
       <Toolbar onOpenInventory={() => setShowInventory(true)} />

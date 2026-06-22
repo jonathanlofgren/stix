@@ -1,8 +1,11 @@
 import type { ConnectorPiece, Direction } from '../model/types';
 import { useDesignStore } from '../store/designStore';
 import { useState } from 'react';
+import { Outlines } from '@react-three/drei';
 import {
+  buildMaterial, BUILD_OUTLINE_COLOR, BUILD_OUTLINE_THICKNESS,
   CONNECTOR_COLOR, HOVER_CONNECTOR, SELECTED_COLOR, STUB_LENGTH,
+  type BuildAppearance,
 } from './constants';
 import { jointGeometry, stubGeometry } from './geometries';
 
@@ -10,6 +13,7 @@ type Props = {
   piece: ConnectorPiece;
   selected: boolean;
   onSelect: (id: string, opts?: { additive?: boolean }) => void;
+  build?: BuildAppearance;
 };
 
 function stubTransform(dir: Direction): {
@@ -27,31 +31,37 @@ function stubTransform(dir: Direction): {
   }
 }
 
-export function ConnectorMesh({ piece, selected, onSelect }: Props) {
+export function ConnectorMesh({ piece, selected, onSelect, build }: Props) {
   const connectorEffectiveSockets = useDesignStore((s) => s.connectorEffectiveSockets);
   const [hover, setHover] = useState(false);
 
   const sockets = connectorEffectiveSockets(piece);
-  const color = selected ? SELECTED_COLOR : hover ? HOVER_CONNECTOR : CONNECTOR_COLOR;
+  const mat = build
+    ? buildMaterial(build, CONNECTOR_COLOR)
+    : { color: selected ? SELECTED_COLOR : hover ? HOVER_CONNECTOR : CONNECTOR_COLOR };
+  const interactive = !build;
+  const raycast = build === 'ghost' ? () => null : undefined;
 
   return (
     <group
       position={piece.position}
-      onPointerOver={(e) => { e.stopPropagation(); setHover(true); }}
-      onPointerOut={() => setHover(false)}
-      onClick={(e) => {
+      onPointerOver={interactive ? (e) => { e.stopPropagation(); setHover(true); } : undefined}
+      onPointerOut={interactive ? () => setHover(false) : undefined}
+      onClick={interactive ? (e) => {
         e.stopPropagation();
         onSelect(piece.id, { additive: e.metaKey || e.ctrlKey });
-      }}
+      } : undefined}
     >
-      <mesh geometry={jointGeometry}>
-        <meshStandardMaterial color={color} roughness={0.6} />
+      <mesh geometry={jointGeometry} raycast={raycast}>
+        <meshStandardMaterial roughness={0.6} {...mat} />
+        {build === 'current' && <Outlines thickness={BUILD_OUTLINE_THICKNESS} color={BUILD_OUTLINE_COLOR} />}
       </mesh>
       {sockets.map((s) => {
         const t = stubTransform(s);
         return (
-          <mesh key={s} position={t.position} rotation={t.rotation} geometry={stubGeometry}>
-            <meshStandardMaterial color={color} roughness={0.6} />
+          <mesh key={s} position={t.position} rotation={t.rotation} geometry={stubGeometry} raycast={raycast}>
+            <meshStandardMaterial roughness={0.6} {...mat} />
+            {build === 'current' && <Outlines thickness={BUILD_OUTLINE_THICKNESS} color={BUILD_OUTLINE_COLOR} />}
           </mesh>
         );
       })}
