@@ -11,15 +11,56 @@ export type PlateCandidate = {
   inPlaneAxes: [0 | 1 | 2, 0 | 1 | 2];
 };
 
-// Return true if there is exactly one pole of `length` whose endpoints are the two given connectors.
-function edgeHasPole(pieces: Piece[], connectorA: string, connectorB: string, length: number): boolean {
-  for (const p of pieces) {
-    if (p.kind !== 'pole' || p.length !== length) continue;
-    const aFrom = p.from.pieceId === connectorA && p.to?.pieceId === connectorB;
-    const bFrom = p.from.pieceId === connectorB && p.to?.pieceId === connectorA;
-    if (aFrom || bFrom) return true;
+// Map every connector id to its position.
+function connectorPositions(pieces: Piece[]): Map<string, Vec3> {
+  const m = new Map<string, Vec3>();
+  for (const p of pieces) if (p.kind === 'connector') m.set(p.id, p.position);
+  return m;
+}
+
+// Return true if the straight edge between two corner positions is fully spanned by a
+// contiguous chain of collinear poles. This allows an edge to be built from a single
+// 1-pole, or from two 0.5-poles joined by an intermediate connector.
+function edgeCovered(pieces: Piece[], connPos: Map<string, Vec3>, posA: Vec3, posB: Vec3): boolean {
+  // The edge must be axis-aligned: it varies along exactly one axis.
+  let axis = -1;
+  for (let i = 0; i < 3; i++) {
+    if (posA[i] !== posB[i]) {
+      if (axis !== -1) return false;
+      axis = i;
+    }
   }
-  return false;
+  if (axis === -1) return false;
+  const lo = Math.min(posA[axis], posB[axis]);
+  const hi = Math.max(posA[axis], posB[axis]);
+
+  // Collect the spans of every pole lying on this exact line.
+  const intervals: Array<[number, number]> = [];
+  for (const p of pieces) {
+    if (p.kind !== 'pole' || !p.to) continue;
+    const pa = connPos.get(p.from.pieceId);
+    const pb = connPos.get(p.to.pieceId);
+    if (!pa || !pb) continue;
+    let onLine = true;
+    for (let i = 0; i < 3; i++) {
+      if (i === axis) continue;
+      if (pa[i] !== posA[i] || pb[i] !== posA[i]) { onLine = false; break; }
+    }
+    if (!onLine) continue;
+    const s0 = Math.min(pa[axis], pb[axis]);
+    const s1 = Math.max(pa[axis], pb[axis]);
+    if (s1 > s0) intervals.push([s0, s1]);
+  }
+
+  // Walk the sorted spans and check they tile [lo, hi] with no gap.
+  intervals.sort((a, b) => a[0] - b[0]);
+  let cursor = lo;
+  for (const [s0, s1] of intervals) {
+    if (s0 > cursor) break; // gap before this span — cannot be filled by later (sorted) spans
+    if (s1 > cursor) cursor = s1;
+    if (cursor >= hi) return true;
+  }
+  return cursor >= hi;
 }
 
 // Enumerate all rectangles in the design that can host a plate of the given size.
@@ -28,6 +69,7 @@ export function enumerateCandidates(pieces: Piece[], size: PlateSize): PlateCand
   const connectors = pieces.filter((p): p is ConnectorPiece => p.kind === 'connector');
   const byPos = new Map<string, ConnectorPiece>();
   for (const c of connectors) byPos.set(posKey(c.position), c);
+  const connPos = connectorPositions(pieces);
 
   const existingPlateKeys = new Set<string>();
   for (const p of pieces) {
@@ -65,10 +107,10 @@ export function enumerateCandidates(pieces: Piece[], size: PlateSize): PlateCand
         );
         if (!vecEquals(min, p1)) continue;
 
-        if (!edgeHasPole(pieces, c1.id, c2.id, eA)) continue;
-        if (!edgeHasPole(pieces, c3.id, c4.id, eA)) continue;
-        if (!edgeHasPole(pieces, c1.id, c3.id, eB)) continue;
-        if (!edgeHasPole(pieces, c2.id, c4.id, eB)) continue;
+        if (!edgeCovered(pieces, connPos, p1, p2)) continue;
+        if (!edgeCovered(pieces, connPos, p3, p4)) continue;
+        if (!edgeCovered(pieces, connPos, p1, p3)) continue;
+        if (!edgeCovered(pieces, connPos, p2, p4)) continue;
 
         const maxCorner = p4;
         const candidateKey = `${posKey(p1)}|${posKey(maxCorner)}`;
@@ -89,6 +131,7 @@ export function validatePlates(pieces: Piece[]): Piece[] {
   for (const p of pieces) {
     if (p.kind === 'connector') byPos.set(posKey(p.position), p);
   }
+  const connPos = connectorPositions(pieces);
   return pieces.filter((p) => {
     if (p.kind !== 'plate') return true;
     const diff: Vec3 = [
@@ -110,12 +153,10 @@ export function validatePlates(pieces: Piece[]): Piece[] {
     const c4 = byPos.get(posKey(p4));
     if (!c1 || !c2 || !c3 || !c4) return false;
     if (!connectorIds.has(c1.id) || !connectorIds.has(c2.id) || !connectorIds.has(c3.id) || !connectorIds.has(c4.id)) return false;
-    const eA = diff[ax1];
-    const eB = diff[ax2];
-    if (!edgeHasPole(pieces, c1.id, c2.id, eA)) return false;
-    if (!edgeHasPole(pieces, c3.id, c4.id, eA)) return false;
-    if (!edgeHasPole(pieces, c1.id, c3.id, eB)) return false;
-    if (!edgeHasPole(pieces, c2.id, c4.id, eB)) return false;
+    if (!edgeCovered(pieces, connPos, p1, p2)) return false;
+    if (!edgeCovered(pieces, connPos, p3, p4)) return false;
+    if (!edgeCovered(pieces, connPos, p1, p3)) return false;
+    if (!edgeCovered(pieces, connPos, p2, p4)) return false;
     return true;
   });
 }

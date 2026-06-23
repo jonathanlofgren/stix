@@ -53,6 +53,24 @@ describe('enumerateCandidates', () => {
     expect(enumerateCandidates(pieces, '1x1')).toHaveLength(0);
   });
 
+  it('finds a 1x1 candidate when one edge is two 0.5-poles joined by a connector', () => {
+    const pieces: Piece[] = [
+      c('a', [0, 0, 0]), c('b', [1, 0, 0]), c('d', [0, 1, 0]), c('e', [1, 1, 0]),
+      // bottom edge a->b split into two half-poles via a middle connector m.
+      c('m', [0.5, 0, 0]),
+      p('e1a', 'a', '+X', 'm', '-X', 0.5),
+      p('e1b', 'm', '+X', 'b', '-X', 0.5),
+      p('e2', 'd', '+X', 'e', '-X'),
+      p('e3', 'a', '+Y', 'd', '-Y'),
+      p('e4', 'b', '+Y', 'e', '-Y'),
+    ];
+    const cands = enumerateCandidates(pieces, '1x1');
+    const square = cands.find(
+      (k) => k.minCorner.join(',') === '0,0,0' && k.maxCorner.join(',') === '1,1,0',
+    );
+    expect(square).toBeDefined();
+  });
+
   it('finds both orientations for 1x0.5 when both frames exist', () => {
     // Build a 1 × 0.5 frame in XY plane using half poles on the short edges.
     const pieces: Piece[] = [
